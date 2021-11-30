@@ -1,0 +1,77 @@
+# coding: utf-8
+import os
+import numpy as np
+from torch.utils import data
+import random
+import soundfile as sf
+import sys 
+import tqdm
+sys.path.append('..')
+from torchvggish.vggish_input import waveform_to_examples
+
+
+def extract_spectrogram():
+	files = open(f"../../../data/gtzan/valid_filtered.txt", 'r').readlines()
+	for file in tqdm.tqdm(files):
+		file = file.strip()
+		audio, sr = sf.read(f'../../../data/gtzan/GTZAN/genres/{file}')
+		audio = waveform_to_examples(audio, sr, return_tensor=False)
+		print(audio.shape)
+		np.save(f'../../../data/gtzan/vgg_spec/{file.split("/")[-1].replace("wav", "npy")}', audio)
+#extract_spectrogram()
+
+class GTZAN(data.Dataset):
+	def __init__(self, root, split, input_length=None):
+		split = split.lower()
+		self.mappeing = {'blues': 0, 'classical': 1, 'country': 2, 'disco': 3, 'hiphop': 4, 'jazz': 5, 'metal': 6, 'pop': 7, 'reggae': 8, 'rock': 9}
+		self.files = open(f"{root}/{split}_filtered.txt", 'r').readlines()
+		self.class_num = 10
+		self.split = split
+		self.seg_length = input_length
+		self.root = root
+
+	def __len__(self):
+		if self.split == 'train':
+			return 10000
+		else:
+			return len(self.files)
+
+	def __getitem__(self, idx):
+		if self.split == 'train':
+			idx = random.randint(0, len(self.files)-1)
+		file = self.files[idx].strip()
+		frame = sf.info(f'{self.root}/GTZAN/genres/{file}').frames
+		label = np.zeros(self.class_num)
+		label[self.mappeing[file.split('/')[0]]] = 1
+		if self.split == 'train':
+			start = random.randint(0, frame-self.seg_length-16000)
+			
+			end = start + self.seg_length
+			audio, sr = sf.read(f'{self.root}/GTZAN/genres/{file}', start=start, stop=end)
+			'''
+			vgg_start = int(round(start/16000/0.96))
+			audio = np.load(f'{self.root}/vgg_spec/{file.split("/")[1].replace("wav", "npy")}')[vgg_start: vgg_start+int(self.seg_length/16000)]
+			'''
+			return audio.astype('float32'), label.astype('float32')
+		else:
+			audio, sr = sf.read(f'{self.root}/GTZAN/genres/{file}')
+			
+			n_chunk = len(audio) // self.seg_length 
+			audio_chunks = np.split(audio[:int(n_chunk*self.seg_length)], n_chunk)
+			audio_chunks.append(audio[-int(self.seg_length):])
+			audio_chunks = np.array(audio_chunks)
+			'''
+			
+			audio_chunks = np.load(f'{self.root}/vgg_spec/{file.split("/")[1].replace("wav", "npy")}')
+			'''
+			return audio_chunks.astype('float32'), label.astype('float32')
+
+
+def get_audio_loader(root, batch_size, split='TRAIN', num_workers=0, input_length=None):
+	data_loader = data.DataLoader(dataset=GTZAN(root, split=split, input_length=input_length),
+								  batch_size=batch_size,
+								  shuffle=True,
+								  drop_last=True,
+								  num_workers=num_workers)
+	return data_loader
+
