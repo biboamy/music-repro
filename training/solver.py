@@ -35,7 +35,6 @@ class Solver(object):
 
         # model path and step size
         self.model_save_path = config.model_save_path
-        self.model_load_path = config.model_load_path
         self.log_step = config.log_step
         self.batch_size = config.batch_size
         self.model_type = config.model_type
@@ -158,7 +157,7 @@ class Solver(object):
     def get_tensor(self, fn):
         # load audio
         if self.dataset == 'gtzan':
-            npy_path = os.path.join(self.data_path, 'GTZAN', 'genres', fn)
+            npy_path = os.path.join(self.data_path, 'genres', fn)
 
         try:
             raw = np.load(npy_path, mmap_mode='r')
