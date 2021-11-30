@@ -40,21 +40,21 @@ class GTZAN(data.Dataset):
 		if self.split == 'train':
 			idx = random.randint(0, len(self.files)-1)
 		file = self.files[idx].strip()
-		frame = sf.info(f'{self.root}/GTZAN/genres/{file}').frames
+		frame = sf.info(os.path.join(self.root, file)).frames
 		label = np.zeros(self.class_num)
 		label[self.mappeing[file.split('/')[0]]] = 1
 		if self.split == 'train':
 			start = random.randint(0, frame-self.seg_length-16000)
 			
 			end = start + self.seg_length
-			audio, sr = sf.read(f'{self.root}/GTZAN/genres/{file}', start=start, stop=end)
+			audio, sr = sf.read(os.path.join(self.root, file), start=start, stop=end)
 			'''
 			vgg_start = int(round(start/16000/0.96))
 			audio = np.load(f'{self.root}/vgg_spec/{file.split("/")[1].replace("wav", "npy")}')[vgg_start: vgg_start+int(self.seg_length/16000)]
 			'''
 			return audio.astype('float32'), label.astype('float32')
 		else:
-			audio, sr = sf.read(f'{self.root}/GTZAN/genres/{file}')
+			audio, sr = sf.read(f'{self.root}/genres/{file}')
 			
 			n_chunk = len(audio) // self.seg_length 
 			audio_chunks = np.split(audio[:int(n_chunk*self.seg_length)], n_chunk)
