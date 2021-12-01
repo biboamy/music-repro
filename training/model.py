@@ -63,10 +63,10 @@ class ImageModel(torch.nn.Module):
             param.requires_grad = False
         
         if reprog:
-            self.delta = torch.nn.Parameter(torch.Tensor(1, 80000), requires_grad=True)
+            self.delta = torch.nn.Parameter(torch.Tensor(1, 500), requires_grad=True)
 
             self.linear_emb = nn.Linear(152*3, pad_num*3)
-            #self.linear_noise = nn.Linear(500, pad_num*3*157)
+            self.linear_noise = nn.Linear(500, pad_num*3*157)
             self.linear_com = nn.Sequential(
                 nn.Conv1d(pad_num*3, pad_num*3, 3, 1, 1),
                 nn.ReLU(),
@@ -85,16 +85,14 @@ class ImageModel(torch.nn.Module):
 
 
     def transform(self, features, isTrain=True, noise=None, **kwargs):
-        features = features + self.delta
         x = self.hcqt(features) # min_max: (-100, 40)
         x = torch.clip((x + 100) / 121, 0, 1)
-        print(self.delta)
+
         if noise is not None:
             # 157 x 313
             n_batch, n_channel, n_freq, n_frame = x.shape
-            #x = self.linear_com((self.linear_emb(x.reshape(n_batch, -1, n_frame).permute(0, 2, 1)) +\
-            #                               self.leakyRely(self.linear_noise(self.delta)).reshape(n_frame, -1).unsqueeze(0).repeat(n_batch, 1, 1)).permute(0 ,2 ,1)).reshape(n_batch, 3, self.pad_num, n_frame)
-            x = self.linear_com((self.linear_emb(x.reshape(n_batch, -1, n_frame).permute(0, 2, 1))).permute(0 ,2 ,1)).reshape(n_batch, 3, self.pad_num, n_frame)
+            x = self.linear_com((self.linear_emb(x.reshape(n_batch, -1, n_frame).permute(0, 2, 1)) +\
+                                           self.leakyRely(self.linear_noise(self.delta)).reshape(n_frame, -1).unsqueeze(0).repeat(n_batch, 1, 1)).permute(0 ,2 ,1)).reshape(n_batch, 3, self.pad_num, n_frame)
             #x = F.pad(x, (0, 0, 0, self.pad_num-x.shape[-2]), "constant", 0)
             #x = (x) + (noise)
             #x = x + noise

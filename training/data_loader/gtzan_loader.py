@@ -54,7 +54,7 @@ class GTZAN(data.Dataset):
 			'''
 			return audio.astype('float32'), label.astype('float32')
 		else:
-			audio, sr = sf.read(f'{self.root}/genres/{file}')
+			audio, sr = sf.read(os.path.join(self.root, file))
 			
 			n_chunk = len(audio) // self.seg_length 
 			audio_chunks = np.split(audio[:int(n_chunk*self.seg_length)], n_chunk)

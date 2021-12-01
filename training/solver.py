@@ -123,6 +123,12 @@ class Solver(object):
                 % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                     datetime.timedelta(seconds=time.time() - start_t)))
 
+    def load(self, filename):
+        S = torch.load(filename)
+        if 'spec.mel_scale.fb' in S.keys():
+            self.model.spec.mel_scale.fb = S['spec.mel_scale.fb']
+        self.model.load_state_dict(S)
+        
     def opt_schedule(self, current_optimizer, drop_counter):
         # adam to sgd
         if current_optimizer == 'adam' and drop_counter == 80:
@@ -154,24 +160,6 @@ class Solver(object):
         model = self.model.state_dict()
         torch.save({'model': model}, filename)
 
-    def get_tensor(self, fn):
-        # load audio
-        if self.dataset == 'gtzan':
-            npy_path = os.path.join(self.data_path, 'genres', fn)
-
-        try:
-            raw = np.load(npy_path, mmap_mode='r')
-        except:
-            raw = sf.read(npy_path)[0]
-
-        # split chunk
-        length = len(raw)
-        hop = (length - self.input_length) // self.batch_size
-        x = torch.zeros(self.batch_size, self.input_length)
-        for i in range(self.batch_size):
-            start = i*hop
-            x[i] = torch.Tensor(raw[start:start+self.input_length]).unsqueeze(0)
-        return x
 
     def get_auc(self, est_array, gt_array):
         roc_aucs  = metrics.roc_auc_score(gt_array, est_array, average='macro')
