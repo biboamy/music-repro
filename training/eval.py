@@ -27,6 +27,7 @@ class Predict(object):
         self.is_cuda = torch.cuda.is_available()
         self.map_num = config.map_num
         self.pad_num = config.pad_num
+        self.reprog_front = config.reprog_front
         self.loader = get_audio_loader(config.data_path, 1, 'test', config.num_workers, input_length=80000)
         self.build_model()
         self.get_dataset()
@@ -34,7 +35,7 @@ class Predict(object):
     def get_model(self):
         if self.model_type in ['resnet18', 'resnet50', 'resnet101', 'efficientnet_b7', 'resnet152']:
             self.input_length = 80000
-            return Model.ImageModel(model_type=self.model_type, map_num=self.map_num, pad_num=self.pad_num)
+            return Model.ImageModel(model_type=self.model_type, map_num=self.map_num, pad_num=self.pad_num, reprog_front=self.reprog_front)
         elif self.model_type == 'vggish':
             return Model.VGGishModel(map_num=self.map_num)
         elif self.model_type in ['lang_ecapa']:
@@ -64,9 +65,15 @@ class Predict(object):
             self.mappeing = {'blues': 0, 'classical': 1, 'country': 2, 'disco': 3, 'hiphop': 4, 'jazz': 5, 'metal': 6, 'pop': 7, 'reggae': 8, 'rock': 9}
 
     def to_var(self, x):
-        if torch.cuda.is_available():
-            x = x.cuda()
-        return Variable(x)
+        if isinstance(x, dict):
+            for d in x.keys():
+                if torch.cuda.is_available():
+                    x[d] = Variable(x[d]).cuda().squeeze()
+            return x
+        else:
+            if torch.cuda.is_available():
+                x = x.cuda()
+            return Variable(x)
 
     def get_tensor(self, fn):
         # load audio
@@ -114,8 +121,13 @@ class Predict(object):
 
             # forward
             x = self.to_var(x).squeeze(0)
-            y = self.to_var(y).repeat(len(x), 1)
-            out = self.model(x, False)
+            x = self.to_var(x)
+            if 'resnet' in self.model_type:
+                y = self.to_var(y).repeat(len(x), 1)
+            elif self.model_type == 'hubert_ks':
+                y = self.to_var(y).repeat(len(x['input_values']), 1)
+
+            out = self.model(x)
             loss = reconst_loss(out, y)
             losses.append(float(loss.data))
             out = out.detach().cpu()
@@ -139,12 +151,13 @@ if __name__ == '__main__':
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--dataset', type=str, default='gtzan', choices=['gtzan'])
     parser.add_argument('--model_type', type=str, default='resnet101',
-                        choices=['resnet18', 'resnet50', 'resnet101', 'efficientnet_b7', 'vggish', 'lang_ecapa', 'resnet152'])
+                        choices=['resnet18', 'resnet50', 'resnet101', 'efficientnet_b7', 'vggish', 'hubert_ks', 'resnet152'])
     parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--model_load_path', type=str, default='.')
     parser.add_argument('--data_path', type=str, default='./data')
     parser.add_argument('--map_num', type=int, default=5)
     parser.add_argument('--pad_num', type=int, default=500)
+    parser.add_argument('--reprog_front', type=str, default=['None'], choices=['None', 'uni_noise', 'condi', 'mix'])
 
     config = parser.parse_args()
 

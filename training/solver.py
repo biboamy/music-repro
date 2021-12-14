@@ -29,9 +29,10 @@ class Solver(object):
         self.n_epochs = config.n_epochs
         self.lr = config.lr
         self.use_tensorboard = config.use_tensorboard
-        self.reprog = config.reprog
         self.map_num = config.map_num
         self.pad_num = config.pad_num
+        self.reprog_front = config.reprog_front
+        self.fix_model = config.fix_model
 
         # model path and step size
         self.model_save_path = config.model_save_path
@@ -46,22 +47,24 @@ class Solver(object):
         self.get_dataset()
         self.build_model()
 
+        #self.load('../models/vggFix/best_model.pth')
+
         # Tensorboard
         self.writer = SummaryWriter()
 
     def get_dataset(self):
         if self.dataset == 'gtzan':
-            self.valid_list = open(f"/home/yhung/Voice2Series-Reprogramming-Pytorch-main/Datasets/gtzan/valid_filtered.txt", 'r').readlines()
+            self.valid_list = open(f"{self.data_path}/valid_filtered.txt", 'r').readlines()
             self.mappeing = {'blues': 0, 'classical': 1, 'country': 2, 'disco': 3, 'hiphop': 4, 'jazz': 5, 'metal': 6, 'pop': 7, 'reggae': 8, 'rock': 9}
 
 
     def get_model(self):
         if self.model_type in ['resnet18', 'resnet50', 'resnet101', 'efficientnet_b7', 'resnet152']:
-            return Model.ImageModel(model_type=self.model_type, map_num=self.map_num, pad_num=self.pad_num)
+            return Model.ImageModel(model_type=self.model_type, map_num=self.map_num, pad_num=self.pad_num, reprog_front=self.reprog_front, fix_model=self.fix_model)
         elif self.model_type == 'vggish':
             return Model.VGGishModel(map_num=self.map_num)
-        elif self.model_type in ['lang_ecapa']:
-            return Model.SpeechModel(map_num=self.map_num)
+        elif self.model_type in ['hubert_ks']:
+            return Model.SpeechModel(map_num=self.map_num, fix_model=self.fix_model, reprog_front=self.reprog_front)
 
     def build_model(self):
         # model
@@ -74,9 +77,15 @@ class Solver(object):
         self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr, weight_decay=1e-4)
 
     def to_var(self, x):
-        if torch.cuda.is_available():
-            x = x.cuda()
-        return Variable(x)
+        if isinstance(x, dict):
+            for d in x.keys():
+                if torch.cuda.is_available():
+                    x[d] = Variable(x[d]).cuda().squeeze()
+            return x
+        else:
+            if torch.cuda.is_available():
+                x = x.cuda()
+            return Variable(x)
 
     def get_loss_function(self):
         return nn.BCEWithLogitsLoss()
@@ -102,7 +111,7 @@ class Solver(object):
                 x = self.to_var(x)
                 y = self.to_var(y)
 
-                out = self.model(x)
+                out = self.model(x['input_values'], x['attention_mask'])
                 # Backward
                 loss = reconst_loss(out, y)
                 self.optimizer.zero_grad()
@@ -125,10 +134,12 @@ class Solver(object):
 
     def load(self, filename):
         S = torch.load(filename)
-        if 'spec.mel_scale.fb' in S.keys():
-            self.model.spec.mel_scale.fb = S['spec.mel_scale.fb']
-        self.model.load_state_dict(S)
-        
+        model_dict = self.model.state_dict()
+        pretrained_dict = {k: v for k, v in S.items() if k in model_dict and 'delta' not in k}
+        model_dict.update(pretrained_dict) 
+        self.model.load_state_dict(model_dict)
+
+
     def opt_schedule(self, current_optimizer, drop_counter):
         # adam to sgd
         if current_optimizer == 'adam' and drop_counter == 80:
@@ -140,13 +151,14 @@ class Solver(object):
             drop_counter = 0
             print('sgd 1e-3')
         # first drop
-        if current_optimizer == 'sgd_1' and drop_counter == 20:
+        if current_optimizer == 'sgd_1' and drop_counter == 50:
             self.load(os.path.join(self.model_save_path, 'best_model.pth'))
             for pg in self.optimizer.param_groups:
-                pg['lr'] = 0.0001
+                pg['lr'] = 0.0005
             current_optimizer = 'sgd_2'
             drop_counter = 0
-            print('sgd 1e-4')
+            print('sgd 5e-4')
+        '''
         # second drop
         if current_optimizer == 'sgd_2' and drop_counter == 20:
             self.load(os.path.join(self.model_save_path, 'best_model.pth'))
@@ -154,6 +166,7 @@ class Solver(object):
                 pg['lr'] = 0.00001
             current_optimizer = 'sgd_3'
             print('sgd 1e-5')
+        '''
         return current_optimizer, drop_counter
 
     def save(self, filename):
@@ -197,27 +210,39 @@ class Solver(object):
 
     def get_validation_score(self, epoch):
         self.model = self.model.eval()
-        est_array = []
-        gt_array = []
-        losses = []
-        reconst_loss = self.get_loss_function()
-        index = 0
-        for x, y in self.valid_loader:
-            # forward
-            x = self.to_var(x).squeeze(0)
-            y = self.to_var(y).repeat(len(x), 1)
+        with torch.no_grad():
+            est_array = []
+            gt_array = []
+            losses = []
+            reconst_loss = self.get_loss_function()
+            index = 0
+            for x, y in self.valid_loader:
+                # forward
+                x = self.to_var(x)
 
-            out = self.model(x, False)
-            loss = reconst_loss(out, y)
-            losses.append(float(loss.data))
-            out = out.detach().cpu()
+                if 'resnet' in self.model_type:
+                    y = self.to_var(y).repeat(len(x), 1)
+                    out = self.model(x)
+                elif self.model_type == 'hubert_ks':
+                    y = self.to_var(y).repeat(len(x['input_values']), 1)
+                    chunk_size = int(np.ceil(len(y) / self.batch_size))
+                    out = torch.empty(y.shape, device = 'cuda')
+                    for c in range(chunk_size):
+                        inp = x['input_values'][c*self.batch_size:(c+1)*self.batch_size]
+                        att = x['attention_mask'][c*self.batch_size:(c+1)*self.batch_size]
+                        out[c*self.batch_size:(c+1)*self.batch_size] = self.model(input_values=inp, attention_mask=att)
+                
+                
+                loss = reconst_loss(out, y)
+                losses.append(float(loss.data))
+                out = out.detach().cpu()
 
-            # estimate
-            estimated = np.array(out).mean(axis=0)
-            est_array.append(estimated)
+                # estimate
+                estimated = np.array(out).mean(axis=0)
+                est_array.append(estimated)
 
-            gt_array.append(y.detach().cpu().numpy()[0])
-            index += 1
+                gt_array.append(y.detach().cpu().numpy()[0])
+                index += 1
 
         est_array, gt_array = np.array(est_array), np.array(gt_array)
         loss = np.mean(losses)
