@@ -8,6 +8,8 @@ import sys
 import tqdm
 sys.path.append('..')
 from torchvggish.vggish_input import waveform_to_examples
+from transformers import HubertForSequenceClassification, Wav2Vec2FeatureExtractor
+import torch
 
 
 def extract_spectrogram():
@@ -21,7 +23,7 @@ def extract_spectrogram():
 #extract_spectrogram()
 
 class GTZAN(data.Dataset):
-	def __init__(self, root, split, input_length=None):
+	def __init__(self, root, split, input_length=None, model='resnet18'):
 		split = split.lower()
 		self.mappeing = {'blues': 0, 'classical': 1, 'country': 2, 'disco': 3, 'hiphop': 4, 'jazz': 5, 'metal': 6, 'pop': 7, 'reggae': 8, 'rock': 9}
 		self.files = open(f"{root}/{split}_filtered.txt", 'r').readlines()
@@ -29,10 +31,14 @@ class GTZAN(data.Dataset):
 		self.split = split
 		self.seg_length = input_length
 		self.root = root
+		self.model = model
+		if self.model == 'hubert_ks':
+			self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("superb/hubert-base-superb-ks")
+
 
 	def __len__(self):
 		if self.split == 'train':
-			return 10000
+			return 100
 		else:
 			return len(self.files)
 
@@ -48,27 +54,43 @@ class GTZAN(data.Dataset):
 			
 			end = start + self.seg_length
 			audio, sr = sf.read(os.path.join(self.root, file), start=start, stop=end)
-			'''
-			vgg_start = int(round(start/16000/0.96))
-			audio = np.load(f'{self.root}/vgg_spec/{file.split("/")[1].replace("wav", "npy")}')[vgg_start: vgg_start+int(self.seg_length/16000)]
-			'''
-			return audio.astype('float32'), label.astype('float32')
+			audio = audio.astype('float32')
+			
+			#vgg_start = int(round(start/16000/0.96))
+			#audio = np.load(f'{self.root}/vgg_spec/{file.split("/")[1].replace("wav", "npy")}')[vgg_start: vgg_start+int(self.seg_length/16000)]
+
+			if self.model == 'hubert_ks':
+				audio = self.feature_extractor(audio, sampling_rate=16000, padding=True, return_tensors="pt")
+				for d in audio.keys():
+					audio[d] = audio[d][0]
+			return audio, label.astype('float32')
 		else:
 			audio, sr = sf.read(os.path.join(self.root, file))
+			audio = audio.astype('float32')
 			
 			n_chunk = len(audio) // self.seg_length 
-			audio_chunks = np.split(audio[:int(n_chunk*self.seg_length)], n_chunk)
-			audio_chunks.append(audio[-int(self.seg_length):])
-			audio_chunks = np.array(audio_chunks)
-			'''
 			
+			'''
 			audio_chunks = np.load(f'{self.root}/vgg_spec/{file.split("/")[1].replace("wav", "npy")}')
 			'''
-			return audio_chunks.astype('float32'), label.astype('float32')
+			if self.model == 'hubert_ks':
+				audio = self.feature_extractor(audio, sampling_rate=16000, padding=True, return_tensors="pt")
+				for d in audio.keys():
+					audio[d] = audio[d][0]
+					audio_chunks = torch.stack(torch.split(audio[d][:int(n_chunk*self.seg_length)], n_chunk))
+					torch.cat((audio_chunks, audio[d][-int(self.seg_length):][:, None]), -1)
+					audio[d] =  audio_chunks.T
+				
+			elif 'resnet' in self.model:
+				audio_chunks = np.split(audio[:int(n_chunk*self.seg_length)], n_chunk)
+				audio_chunks.append(audio[-int(self.seg_length):])
+				audio = np.array(audio_chunks)
+
+			return audio, label.astype('float32')
 
 
-def get_audio_loader(root, batch_size, split='TRAIN', num_workers=0, input_length=None):
-	data_loader = data.DataLoader(dataset=GTZAN(root, split=split, input_length=input_length),
+def get_audio_loader(root, batch_size, split='TRAIN', num_workers=0, input_length=None, model='resnet18'):
+	data_loader = data.DataLoader(dataset=GTZAN(root, split=split, input_length=input_length, model=model),
 								  batch_size=batch_size,
 								  shuffle=True,
 								  drop_last=True,

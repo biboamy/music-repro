@@ -30,12 +30,14 @@ def main(config):
                                     config.batch_size,
 									split='TRAIN',
                                     input_length=config.input_length,
-                                    num_workers=config.num_workers)
+                                    num_workers=config.num_workers,
+                                    model=config.model_type)
     valid_loader = get_audio_loader(config.data_path,
                                     1,
                                     split='valid',
                                     input_length=config.input_length,
-                                    num_workers=config.num_workers)
+                                    num_workers=config.num_workers,
+                                    model=config.model_type)
     solver = Solver(train_loader, valid_loader, config)
     solver.train()
 
@@ -46,7 +48,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_workers', type=int, default=6)
     parser.add_argument('--dataset', type=str, default='gtzan', choices=['gtzan'])
     parser.add_argument('--model_type', type=str, default='resnet101',
-						choices=['resnet18', 'resnet50', 'resnet101', 'efficientnet_b7', 'vggish', 'lang_ecapa', 'resnet152'])
+						choices=['resnet18', 'resnet50', 'resnet101', 'efficientnet_b7', 'vggish', 'hubert_ks', 'resnet152'])
     parser.add_argument('--n_epochs', type=int, default=100)
     parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--lr', type=float, default=1e-4)
@@ -57,7 +59,8 @@ if __name__ == '__main__':
     parser.add_argument('--input_length', type=int, default=80000)
     parser.add_argument('--map_num', type=int, default=5)
     parser.add_argument('--pad_num', type=int, default=500)
-    parser.add_argument('--reprog', type=bool, default=True)
+    parser.add_argument('--fix_model', type=bool, default=False)
+    parser.add_argument('--reprog_front', type=str, default=['None'], choices=['None', 'uni_noise', 'condi', 'mix'])
 
     config = parser.parse_args()
 
