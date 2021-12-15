@@ -61,7 +61,7 @@ class Predict(object):
 
     def get_dataset(self):
         if self.dataset == 'gtzan':
-            self.test_list = open(f"../../Voice2Series-Reprogramming-Pytorch-main/Datasets/gtzan/test_filtered.txt", 'r').readlines()
+            self.test_list = open(f"../../../data/gtzan/test_filtered.txt", 'r').readlines()
             self.mappeing = {'blues': 0, 'classical': 1, 'country': 2, 'disco': 3, 'hiphop': 4, 'jazz': 5, 'metal': 6, 'pop': 7, 'reggae': 8, 'rock': 9}
 
     def to_var(self, x):
