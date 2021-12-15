@@ -38,7 +38,7 @@ class GTZAN(data.Dataset):
 
 	def __len__(self):
 		if self.split == 'train':
-			return 100
+			return 10000
 		else:
 			return len(self.files)
 
@@ -81,7 +81,7 @@ class GTZAN(data.Dataset):
 					torch.cat((audio_chunks, audio[d][-int(self.seg_length):][:, None]), -1)
 					audio[d] =  audio_chunks.T
 				
-			elif 'resnet' in self.model:
+			elif 'resnet' in self.model or 'CNN' in self.model:
 				audio_chunks = np.split(audio[:int(n_chunk*self.seg_length)], n_chunk)
 				audio_chunks.append(audio[-int(self.seg_length):])
 				audio = np.array(audio_chunks)
