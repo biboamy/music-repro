@@ -38,8 +38,8 @@ class Predict(object):
             return Model.ImageModel(model_type=self.model_type, map_num=self.map_num, pad_num=self.pad_num, reprog_front=self.reprog_front)
         elif self.model_type == 'vggish':
             return Model.VGGishModel(map_num=self.map_num)
-        elif self.model_type in ['lang_ecapa']:
-            return Model.SpeechModel(map_num=self.map_num)
+        elif self.model_type in ['CNN16k', 'CNN235.5k', 'CNN14.1m', 'CNN14.4m']:
+            return Model.CNNModel(model_type=self.model_type)
         else:
             print('model_type has to be one of [fcn, musicnn, crnn, sample, se, short, short_res, attention]')
 
@@ -152,7 +152,9 @@ if __name__ == '__main__':
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--dataset', type=str, default='gtzan', choices=['gtzan'])
     parser.add_argument('--model_type', type=str, default='resnet101',
-                        choices=['resnet18', 'resnet50', 'resnet101', 'efficientnet_b7', 'vggish', 'hubert_ks', 'resnet152'])
+                        choices=['resnet18', 'resnet50', 'resnet101', 'efficientnet_b7', \
+                                 'CNN16k', 'CNN235.5k', 'CNN14.1m', 'CNN14.4m', \
+                                 'vggish', 'hubert_ks'])
     parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--model_load_path', type=str, default='.')
     parser.add_argument('--data_path', type=str, default='./data')
