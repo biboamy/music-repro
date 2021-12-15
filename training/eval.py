@@ -73,7 +73,7 @@ class Predict(object):
         else:
             if torch.cuda.is_available():
                 x = x.cuda()
-            return Variable(x)
+            return Variable(x).squeeze()
 
     def get_tensor(self, fn):
         # load audio
@@ -120,9 +120,10 @@ class Predict(object):
         for x, y in self.loader:
 
             # forward
-            x = self.to_var(x).squeeze(0)
             x = self.to_var(x)
             if 'resnet' in self.model_type:
+                y = self.to_var(y).repeat(len(x), 1)
+            elif 'CNN' in self.model_type:
                 y = self.to_var(y).repeat(len(x), 1)
             elif self.model_type == 'hubert_ks':
                 y = self.to_var(y).repeat(len(x['input_values']), 1)

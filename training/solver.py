@@ -47,7 +47,9 @@ class Solver(object):
         self.get_dataset()
         self.build_model()
 
-        #self.load('../models/vggFix/best_model.pth')
+        model_parameters = filter(lambda p: p.requires_grad, self.model.parameters())
+        params = sum([np.prod(p.size()) for p in model_parameters])
+        print(f'Trainable parameters: {str(params)}')
 
         # Tensorboard
         self.writer = SummaryWriter()
@@ -63,6 +65,8 @@ class Solver(object):
             return Model.ImageModel(model_type=self.model_type, map_num=self.map_num, pad_num=self.pad_num, reprog_front=self.reprog_front, fix_model=self.fix_model)
         elif self.model_type == 'vggish':
             return Model.VGGishModel(map_num=self.map_num)
+        elif self.model_type in ['CNN16k', 'CNN235.5k', 'CNN14.1m', 'CNN14.4m']:
+            return Model.CNNModel(model_type=self.model_type)
         elif self.model_type in ['hubert_ks']:
             return Model.SpeechModel(map_num=self.map_num, fix_model=self.fix_model, reprog_front=self.reprog_front)
 
@@ -85,7 +89,7 @@ class Solver(object):
         else:
             if torch.cuda.is_available():
                 x = x.cuda()
-            return Variable(x)
+            return Variable(x).squeeze()
 
     def get_loss_function(self):
         return nn.BCEWithLogitsLoss()
@@ -111,7 +115,12 @@ class Solver(object):
                 x = self.to_var(x)
                 y = self.to_var(y)
 
-                out = self.model(x['input_values'], x['attention_mask'])
+                if 'resnet' in self.model_type:
+                    out = self.model(x)
+                elif 'CNN' in self.model_type:
+                    out = self.model(x)
+                elif self.model_type == 'hubert_ks':
+                    out = self.model(x['input_values'], x['attention_mask'])
                 # Backward
                 loss = reconst_loss(out, y)
                 self.optimizer.zero_grad()
@@ -221,6 +230,9 @@ class Solver(object):
                 x = self.to_var(x)
 
                 if 'resnet' in self.model_type:
+                    y = self.to_var(y).repeat(len(x), 1)
+                    out = self.model(x)
+                elif 'CNN' in self.model_type:
                     y = self.to_var(y).repeat(len(x), 1)
                     out = self.model(x)
                 elif self.model_type == 'hubert_ks':
