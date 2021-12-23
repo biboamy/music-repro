@@ -127,7 +127,7 @@ class CNNModel(torch.nn.Module):
     def forward(self, features, **kwargs):
         x = self.hcqt(features)
         x = self.conv(x).reshape(len(x), -1)
-
+        #print(x.shape)
         x = self.classifier(x)
 
         return x

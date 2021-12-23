@@ -12,7 +12,6 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import soundfile as sf
-from data_loader.gtzan_loader import get_audio_loader
 
 import model as Model
 
@@ -28,14 +27,19 @@ class Predict(object):
         self.map_num = config.map_num
         self.pad_num = config.pad_num
         self.reprog_front = config.reprog_front
+        if self.dataset == 'gtzan':
+            from data_loader.gtzan_loader import get_audio_loader
+            self.n_classes = 10
+        elif self.dataset == 'FMA':
+            from data_loader.FMA_loader import get_audio_loader
+            self.n_classes = 16
         self.loader = get_audio_loader(config.data_path, 1, 'test', config.num_workers, input_length=80000)
         self.build_model()
-        self.get_dataset()
 
     def get_model(self):
         if self.model_type in ['resnet18', 'resnet50', 'resnet101', 'efficientnet_b7', 'resnet152']:
             self.input_length = 80000
-            return Model.ImageModel(model_type=self.model_type, map_num=self.map_num, pad_num=self.pad_num, reprog_front=self.reprog_front)
+            return Model.ImageModel(model_type=self.model_type, map_num=self.map_num, pad_num=self.pad_num, reprog_front=self.reprog_front, n_class=self.n_classes)
         elif self.model_type == 'vggish':
             return Model.VGGishModel(map_num=self.map_num)
         elif self.model_type in ['CNN16k', 'CNN235.5k', 'CNN14.1m', 'CNN14.4m']:
@@ -59,11 +63,6 @@ class Predict(object):
             self.model.spec.mel_scale.fb = S['spec.mel_scale.fb']
         self.model.load_state_dict(S)
 
-    def get_dataset(self):
-        if self.dataset == 'gtzan':
-            self.test_list = open(f"{self.data_path}/test_filtered.txt", 'r').readlines()
-            self.mappeing = {'blues': 0, 'classical': 1, 'country': 2, 'disco': 3, 'hiphop': 4, 'jazz': 5, 'metal': 6, 'pop': 7, 'reggae': 8, 'rock': 9}
-
     def to_var(self, x):
         if isinstance(x, dict):
             for d in x.keys():
@@ -74,25 +73,6 @@ class Predict(object):
             if torch.cuda.is_available():
                 x = x.cuda()
             return Variable(x).squeeze()
-
-    def get_tensor(self, fn):
-        # load audio
-        if self.dataset == 'gtzan':
-            npy_path = os.path.join(self.data_path, 'GTZAN', 'genres', fn)
-
-        try:
-            raw = np.load(npy_path, mmap_mode='r')
-        except:
-            raw = sf.read(npy_path)[0]
-
-
-        # split chunk
-        length = len(raw)
-        hop = (length - self.input_length) // self.batch_size
-        x = torch.zeros(self.batch_size, self.input_length)
-        for i in range(self.batch_size):
-            x[i] = torch.Tensor(raw[i*hop:i*hop+self.input_length]).unsqueeze(0)
-        return x
 
     def get_auc(self, est_array, gt_array):
         roc_aucs  = metrics.roc_auc_score(gt_array, est_array, average='macro')
@@ -117,7 +97,7 @@ class Predict(object):
         gt_array = []
         losses = []
         reconst_loss = nn.BCEWithLogitsLoss()
-        for x, y in self.loader:
+        for x, y in tqdm.tqdm(self.loader):
 
             # forward
             x = self.to_var(x)
@@ -150,7 +130,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('--num_workers', type=int, default=4)
-    parser.add_argument('--dataset', type=str, default='gtzan', choices=['gtzan'])
+    parser.add_argument('--dataset', type=str, default='gtzan', choices=['gtzan', 'FMA'])
     parser.add_argument('--model_type', type=str, default='resnet101',
                         choices=['resnet18', 'resnet50', 'resnet101', 'efficientnet_b7', \
                                  'CNN16k', 'CNN235.5k', 'CNN14.1m', 'CNN14.4m', \
