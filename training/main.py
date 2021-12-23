@@ -24,11 +24,13 @@ def main(config):
     # import data loader
     if config.dataset == 'gtzan':
         from data_loader.gtzan_loader import get_audio_loader
+    if config.dataset == 'FMA':
+        from data_loader.FMA_loader import get_audio_loader
    
     # get data loder
     train_loader = get_audio_loader(config.data_path,
                                     config.batch_size,
-									split='TRAIN',
+                                    split='TRAIN',
                                     input_length=config.input_length,
                                     num_workers=config.num_workers,
                                     model=config.model_type)
@@ -46,9 +48,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('--num_workers', type=int, default=6)
-    parser.add_argument('--dataset', type=str, default='gtzan', choices=['gtzan'])
+    parser.add_argument('--dataset', type=str, default='gtzan', choices=['gtzan', 'FMA'])
     parser.add_argument('--model_type', type=str, default='resnet101',
-						choices=['resnet18', 'resnet50', 'resnet101', 'efficientnet_b7', \
+                        choices=['resnet18', 'resnet50', 'resnet101', 'efficientnet_b7', \
                                  'CNN16k', 'CNN235.5k', 'CNN14.1m', 'CNN14.4m', \
                                  'vggish', 'hubert_ks'])
     parser.add_argument('--n_epochs', type=int, default=200)

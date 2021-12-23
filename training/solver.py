@@ -33,6 +33,10 @@ class Solver(object):
         self.pad_num = config.pad_num
         self.reprog_front = config.reprog_front
         self.fix_model = config.fix_model
+        if self.dataset == 'gtzan':
+            self.n_class = 10
+        elif self.dataset == 'FMA':
+            self.n_class = 16
 
         # model path and step size
         self.model_save_path = config.model_save_path
@@ -44,7 +48,6 @@ class Solver(object):
         self.is_cuda = torch.cuda.is_available()
 
         # Build model
-        self.get_dataset()
         self.build_model()
 
         model_parameters = filter(lambda p: p.requires_grad, self.model.parameters())
@@ -54,15 +57,10 @@ class Solver(object):
         # Tensorboard
         self.writer = SummaryWriter()
 
-    def get_dataset(self):
-        if self.dataset == 'gtzan':
-            self.valid_list = open(f"{self.data_path}/valid_filtered.txt", 'r').readlines()
-            self.mappeing = {'blues': 0, 'classical': 1, 'country': 2, 'disco': 3, 'hiphop': 4, 'jazz': 5, 'metal': 6, 'pop': 7, 'reggae': 8, 'rock': 9}
-
 
     def get_model(self):
         if self.model_type in ['resnet18', 'resnet50', 'resnet101', 'efficientnet_b7', 'resnet152']:
-            return Model.ImageModel(model_type=self.model_type, map_num=self.map_num, pad_num=self.pad_num, reprog_front=self.reprog_front, fix_model=self.fix_model)
+            return Model.ImageModel(model_type=self.model_type, map_num=self.map_num, pad_num=self.pad_num, reprog_front=self.reprog_front, fix_model=self.fix_model, n_class=self.n_class)
         elif self.model_type == 'vggish':
             return Model.VGGishModel(map_num=self.map_num)
         elif self.model_type in ['CNN16k', 'CNN235.5k', 'CNN14.1m', 'CNN14.4m']:
@@ -225,7 +223,7 @@ class Solver(object):
             losses = []
             reconst_loss = self.get_loss_function()
             index = 0
-            for x, y in self.valid_loader:
+            for x, y in tqdm.tqdm(self.valid_loader):
                 # forward
                 x = self.to_var(x)
 
