@@ -43,7 +43,7 @@ class Predict(object):
         elif self.model_type == 'vggish':
             return Model.VGGishModel(map_num=self.map_num)
         elif self.model_type in ['CNN16k', 'CNN235.5k', 'CNN14.1m', 'CNN14.4m']:
-            return Model.CNNModel(model_type=self.model_type)
+            return Model.CNNModel(model_type=self.model_type, n_class=self.n_classes)
         else:
             print('model_type has to be one of [fcn, musicnn, crnn, sample, se, short, short_res, attention]')
 

@@ -67,24 +67,28 @@ class CNNModel(torch.nn.Module):
                                   semitone_scale=semitone_scale,
                                   learn_bw=learn_bw)
         if model_type == 'CNN16k':
-            conv_channels = 13
+            conv_channels = 10
             self.conv = nn.Sequential(
                 Conv3_2d(3, conv_channels, kernal=5),
                 Conv3_2d(conv_channels, conv_channels),
                 Conv3_2d(conv_channels, conv_channels),
                 Conv3_2d(conv_channels, conv_channels)
             )
-            self.classifier = nn.Linear(1053, 10)
+            self.classifier = nn.Linear(810, n_class)
+            # 1053, 13
+            # 810, 10
 
         if model_type == 'CNN235.5k':
-            conv_channels = 58
+            conv_channels = 54
             self.conv = nn.Sequential(
                 Conv3_2d(3, conv_channels, 2, kernal=6),
                 Conv3_2d_resmp(conv_channels, conv_channels),
                 Conv3_2d_resmp(conv_channels, conv_channels),
                 Conv3_2d_resmp(conv_channels, conv_channels)
             )
-            self.classifier = nn.Linear(4698, 10)
+            self.classifier = nn.Linear(4374, n_class)
+            # 4698 58
+            # 4374 54
 
         elif model_type == 'CNN14.1m':
             conv_channels = 126
@@ -98,12 +102,15 @@ class CNNModel(torch.nn.Module):
                 Conv3_2d_resmp(conv_channels*2, conv_channels*2, 1)
             )
             self.classifier = nn.Sequential(
-                nn.Linear(8064, 1016),
-                nn.BatchNorm1d(1016),
+                nn.Linear(8064, 1007),
+                nn.BatchNorm1d(1007),
                 nn.ReLU(),
                 nn.Dropout(0.5),
-                nn.Linear(1016, 10)
+                nn.Linear(1007, n_class)
             )
+            # 1016
+            # 1007
+
 
         elif model_type == 'CNN14.4m':
             conv_channels = 128
@@ -117,12 +124,14 @@ class CNNModel(torch.nn.Module):
                 Conv3_2d_resmp(conv_channels*2, conv_channels*2, 1)
             )
             self.classifier = nn.Sequential(
-                nn.Linear(8192, 1006),
-                nn.BatchNorm1d(1006),
+                nn.Linear(8192, 1004),
+                nn.BatchNorm1d(1004),
                 nn.ReLU(),
                 nn.Dropout(0.5),
-                nn.Linear(1006, 10)
+                nn.Linear(1004, n_class)
             )
+            # 1006
+            # 1004
 
     def forward(self, features, **kwargs):
         x = self.hcqt(features)
@@ -215,6 +224,131 @@ class ImageModel(torch.nn.Module):
         
         predicted = self.resnet(x)[:, :self.class_num * self.map_num]
         predicted = predicted.view(-1, self.class_num, self.map_num).sum(dim=-1)
+        return predicted
+
+
+class AttRNNSpeechModel(torch.nn.Module):
+    def __init__(self, args, **kwargs):
+        super(AttRNNSpeechModel, self).__init__()
+        self.decibel = True
+        self.mel_extr = torchaudio.transforms.MelSpectrogram(n_fft= 1024, n_mels= 80, f_min= 40, f_max= 8000, power= 1)
+
+        if self.decibel:
+            self.mag2db = torchaudio.transforms.AmplitudeToDB(80)
+
+        self.conv_block = torch.nn.Sequential(
+            torch.nn.Conv2d(1, 10, kernel_size=(5, 1), padding='same'),
+            torch.nn.BatchNorm2d(10, eps=0.001),
+            torch.nn.Conv2d(10, 1, kernel_size=(5, 1), padding='same'),
+            torch.nn.BatchNorm2d(1, eps=0.001))
+
+        self.lstm_block = torch.nn.LSTM(input_size=80, hidden_size=64,
+                                        num_layers=2,
+                                        batch_first=True,
+                                        bidirectional=True)
+        self.query_transform = torch.nn.Linear(128, 128)
+        self.head = torch.nn.Sequential(torch.nn.Linear(128, 64),
+                                        torch.nn.Linear(64, 32),
+                                        torch.nn.Linear(32, 35),
+                                        torch.nn.Softmax(dim=1))
+        self.init_weights()
+
+    def init_weights(self):
+        for name, param in self.named_parameters():
+            if 'weight_hh' in name:
+                torch.nn.init.orthogonal_(param.data)
+            elif 'weight' in name:
+                if param.data.ndim == 1:
+                    param.data = param.data.unsqueeze(-1)
+                    torch.nn.init.xavier_uniform_(param.data)
+                    param.data = param.data.squeeze(-1)
+                else:
+                    torch.nn.init.xavier_uniform_(param.data)
+            elif 'bias' in name:
+                torch.nn.init.constant_(param.data, 0)
+
+    def normalize2d(self, x):
+        mean = torch.mean(x,  dim=(1, 2, 3), keepdim=True)
+        std = torch.std(x, dim=(1, 2, 3), keepdim=True)
+        return (x - mean) / (std + 1e-10)
+
+    def transform(self, features, delta=None):
+
+        features = self.conv_block(features).squeeze(1)
+        hidden_seq, _ = self.lstm_block(features)
+        query = self.query_transform(hidden_seq.mean(dim=1)).view(
+            hidden_seq.shape[0], 1, hidden_seq.shape[-1])
+        att_scores = torch.bmm(query, hidden_seq.permute(0, 2, 1))
+        predicted = torch.bmm(att_scores, hidden_seq).squeeze(1)
+        predicted = self.head(predicted)
+        return predicted
+
+    def forward(self, features, target, **kwargs):
+        predicted = self.transform(features)
+        return torch.nn.functional.nll_loss(torch.log(predicted), target, reduction='sum')
+
+
+class V2SReprogModel(torch.nn.Module):
+    def __init__(self, map_num=5, n_class=10, reprog_front=None):
+        super(V2SReprogModel, self).__init__()
+
+        self.cls_model = self.load()
+
+        for param in self.cls_model.parameters():
+            param.requires_grad = False
+
+        if reprog_front == 'uni_noise':
+            self.delta = torch.nn.Parameter(torch.Tensor(1, 1, 42, 80), requires_grad=True)
+            torch.nn.init.xavier_uniform_(self.delta)
+        elif reprog_front == 'condi':
+            self.linear_com = nn.Sequential(
+                nn.Conv1d(1, 10, 3, 1, 1),
+                nn.ReLU(),
+                nn.Conv1d(10, 100, 3, 1, 1),
+            )
+            self.linear = nn.Linear(100, 1)
+        elif reprog_front == 'mix':
+            self.delta = torch.nn.Parameter(torch.Tensor(1, pad_num*3*157), requires_grad=True)
+            self.linear_emb = nn.Linear(152*3, pad_num*3)
+            self.linear_com = nn.Sequential(
+                nn.Conv1d(pad_num*3, pad_num*3, 3, 1, 1),
+                nn.ReLU(),
+                nn.Conv1d(pad_num*3, pad_num*3, 3, 1, 1),
+            )
+            torch.nn.init.xavier_uniform_(self.delta)
+
+        #self.lmbd = args.lmbd
+        self.map_num = map_num
+        self.class_num = n_class
+        self.reprog_front = reprog_front
+
+    def load(self):
+        ckpt = torch.load('AttRNNSpeechModel.pth', map_location='cpu')
+        args = ckpt['Args']
+
+        model = eval(f'{args.model}')(args)
+        model.load_state_dict(ckpt['Model'])
+        return model
+
+    #def forward(self, wav, target, **kwargs):
+    #    predicted = self.transform(wav)
+    #    return torch.nn.functional.nll_loss(torch.log(predicted), target, reduction='sum') + \
+    #        self.lmbd * torch.square(self.delta).sum() * len(wav)
+
+    def forward(self, wav):
+        n_batch = wav.shape[0]
+        wav = wav.reshape(n_batch, -1, 16000).reshape(-1, 16000).unsqueeze(1)
+
+        if self.reprog_front == 'condi':
+            wav = torch.tanh(self.linear(self.linear_com(wav).permute(0, 2, 1)).permute(0, 2, 1))
+            
+        features = self.cls_model.mel_extr(wav).permute(0, 1, 3, 2)
+        features = self.cls_model.mag2db(features)
+        predicted = self.cls_model.transform(features)[:, :self.class_num * self.map_num]
+
+        predicted = predicted.view(-1, self.class_num,
+                                   self.map_num).sum(dim=-1)
+        predicted = predicted.reshape(n_batch, -1, self.class_num).mean(1)
         return predicted
 
 

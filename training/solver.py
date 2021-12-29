@@ -64,9 +64,11 @@ class Solver(object):
         elif self.model_type == 'vggish':
             return Model.VGGishModel(map_num=self.map_num)
         elif self.model_type in ['CNN16k', 'CNN235.5k', 'CNN14.1m', 'CNN14.4m']:
-            return Model.CNNModel(model_type=self.model_type)
+            return Model.CNNModel(model_type=self.model_type, n_class=self.n_class)
         elif self.model_type in ['hubert_ks']:
             return Model.SpeechModel(map_num=self.map_num, fix_model=self.fix_model, reprog_front=self.reprog_front)
+        elif self.model_type == 'speechatt':
+            return Model.V2SReprogModel(map_num=self.map_num, n_class=self.n_class, reprog_front=self.reprog_front)
 
     def build_model(self):
         # model
@@ -116,6 +118,8 @@ class Solver(object):
                 if 'resnet' in self.model_type:
                     out = self.model(x)
                 elif 'CNN' in self.model_type:
+                    out = self.model(x)
+                elif self.model_type == 'speechatt':
                     out = self.model(x)
                 elif self.model_type == 'hubert_ks':
                     out = self.model(x['input_values'], x['attention_mask'])
@@ -231,6 +235,9 @@ class Solver(object):
                     y = self.to_var(y).repeat(len(x), 1)
                     out = self.model(x)
                 elif 'CNN' in self.model_type:
+                    y = self.to_var(y).repeat(len(x), 1)
+                    out = self.model(x)
+                elif self.model_type == 'speechatt':
                     y = self.to_var(y).repeat(len(x), 1)
                     out = self.model(x)
                 elif self.model_type == 'hubert_ks':
