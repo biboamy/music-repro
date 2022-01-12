@@ -136,7 +136,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--dataset', type=str, default='gtzan', choices=['gtzan', 'FMA'])
     parser.add_argument('--model_type', type=str, default='resnet101',
-                        choices=['resnet18', 'resnet50', 'resnet101', 'efficientnet_b7', \
+                        choices=['resnet18', 'resnet50', 'resnet101', 'resnet152', 'efficientnet_b7', \
                                  'CNN16k', 'CNN235.5k', 'CNN14.1m', 'CNN14.4m', \
                                  'vggish', 'hubert_ks', 'speechatt'])
     parser.add_argument('--batch_size', type=int, default=16)
