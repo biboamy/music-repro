@@ -205,7 +205,9 @@ class ImageModel(torch.nn.Module):
 
     def forward(self, features, **kwargs):
         x = self.hcqt(features) # min_max: (-100, 40)
-        x = torch.clip((x + 100) / 121, 0, 1)
+
+        #x = torch.clip((x + 100) / 121, 0, 1)
+        x = torch.clip((x + 25) / 50, 0, 1)
 
         # 157 x 313
         n_batch, n_channel, n_freq, n_frame = x.shape
@@ -452,6 +454,7 @@ class SpeechModel(torch.nn.Module):
             input_values = input_values #+ torch.nn.Identity()(self.delta)
 
         predicted = self.model(input_values=input_values).logits
+        print(predicted.shape)
         predicted = predicted[:, :self.class_num*self.map_num]
         predicted = predicted.view(-1, self.class_num, self.map_num).sum(dim=-1)
         return predicted

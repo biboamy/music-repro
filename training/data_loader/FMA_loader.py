@@ -7,6 +7,7 @@ import sys
 import tqdm
 from pandas import *
 import librosa
+from transformers import HubertForSequenceClassification, Wav2Vec2FeatureExtractor
 
 
 class FMA(data.Dataset):
@@ -23,8 +24,6 @@ class FMA(data.Dataset):
 		self.mappeing = {'Blues': 0, 'Classical': 1, 'Country': 2, 'Easy Listening': 3, 'Electronic': 4, 'Experimental': 5, 'Folk': 6, 'Hip-Hop': 7, \
 						 'Instrumental': 8, 'International': 9, 'Jazz': 10, 'Old-Time / Historic': 11, 'Pop': 12, 'Rock': 13, 'Soul-RnB': 14, 'Spoken': 15}
 		self.files = df[df.columns[0]].tolist()
-		print(len(self.files))
-
 		#if split == 'train':
 		#	self.files = random.sample(self.files, int(len(self.files)*0.1))
 		self.class_num = 16
@@ -39,7 +38,7 @@ class FMA(data.Dataset):
 
 	def __len__(self):
 		if self.split == 'train':
-			return 10000
+			return len(self.files)
 		else:
 			return len(self.files)
 
@@ -57,13 +56,13 @@ class FMA(data.Dataset):
 			except:
 				return self.__getitem__(random.randint(0, len(self.files)-1))
 			audio = audio.astype('float32')
+			if len(audio.shape) == 2:
+				audio = (audio[:, 0]+audio[:, 1])/2
 			
 			if self.model == 'hubert_ks':
 				audio = self.feature_extractor(audio, sampling_rate=16000, padding=True, return_tensors="pt")
 				for d in audio.keys():
 					audio[d] = audio[d][0]
-			if len(audio.shape) == 2:
-				audio = (audio[:, 0]+audio[:, 1])/2
 
 			return audio, label.astype('float32')
 			
