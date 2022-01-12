@@ -23,8 +23,10 @@ class FMA(data.Dataset):
 		self.mappeing = {'Blues': 0, 'Classical': 1, 'Country': 2, 'Easy Listening': 3, 'Electronic': 4, 'Experimental': 5, 'Folk': 6, 'Hip-Hop': 7, \
 						 'Instrumental': 8, 'International': 9, 'Jazz': 10, 'Old-Time / Historic': 11, 'Pop': 12, 'Rock': 13, 'Soul-RnB': 14, 'Spoken': 15}
 		self.files = df[df.columns[0]].tolist()
-		if split == 'train':
-			self.files = random.sample(self.files, int(len(self.files)*0.1))
+		print(len(self.files))
+
+		#if split == 'train':
+		#	self.files = random.sample(self.files, int(len(self.files)*0.1))
 		self.class_num = 16
 		self.split = split
 		self.seg_length = input_length
@@ -37,7 +39,7 @@ class FMA(data.Dataset):
 
 	def __len__(self):
 		if self.split == 'train':
-			return 1000
+			return 10000
 		else:
 			return len(self.files)
 
