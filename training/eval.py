@@ -44,6 +44,8 @@ class Predict(object):
             return Model.VGGishModel(map_num=self.map_num)
         elif self.model_type in ['CNN16k', 'CNN235.5k', 'CNN14.1m', 'CNN14.4m']:
             return Model.CNNModel(model_type=self.model_type, n_class=self.n_classes)
+        elif self.model_type == 'speechatt':
+            return Model.V2SReprogModel(map_num=self.map_num, n_class=self.n_classes, reprog_front=self.reprog_front)
         else:
             print('model_type has to be one of [fcn, musicnn, crnn, sample, se, short, short_res, attention]')
 
@@ -105,6 +107,8 @@ class Predict(object):
                 y = self.to_var(y).repeat(len(x), 1)
             elif 'CNN' in self.model_type:
                 y = self.to_var(y).repeat(len(x), 1)
+            elif self.model_type == 'speechatt':
+                y = self.to_var(y).repeat(len(x), 1)
             elif self.model_type == 'hubert_ks':
                 y = self.to_var(y).repeat(len(x['input_values']), 1)
 
@@ -134,7 +138,7 @@ if __name__ == '__main__':
     parser.add_argument('--model_type', type=str, default='resnet101',
                         choices=['resnet18', 'resnet50', 'resnet101', 'efficientnet_b7', \
                                  'CNN16k', 'CNN235.5k', 'CNN14.1m', 'CNN14.4m', \
-                                 'vggish', 'hubert_ks'])
+                                 'vggish', 'hubert_ks', 'speechatt'])
     parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--model_load_path', type=str, default='.')
     parser.add_argument('--data_path', type=str, default='./data')

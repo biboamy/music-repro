@@ -249,8 +249,9 @@ class AttRNNSpeechModel(torch.nn.Module):
         self.query_transform = torch.nn.Linear(128, 128)
         self.head = torch.nn.Sequential(torch.nn.Linear(128, 64),
                                         torch.nn.Linear(64, 32),
-                                        torch.nn.Linear(32, 35),
-                                        torch.nn.Softmax(dim=1))
+                                        torch.nn.Linear(32, 35))
+                                        #torch.nn.Sigmoid())
+                                        #torch.nn.Softmax(dim=1))
         self.init_weights()
 
     def init_weights(self):
@@ -289,7 +290,7 @@ class AttRNNSpeechModel(torch.nn.Module):
 
 
 class V2SReprogModel(torch.nn.Module):
-    def __init__(self, map_num=5, n_class=10, reprog_front=None):
+    def __init__(self, map_num=5, n_class=16, reprog_front=None):
         super(V2SReprogModel, self).__init__()
 
         self.cls_model = self.load()
@@ -298,22 +299,33 @@ class V2SReprogModel(torch.nn.Module):
             param.requires_grad = False
 
         if reprog_front == 'uni_noise':
-            self.delta = torch.nn.Parameter(torch.Tensor(1, 1, 42, 80), requires_grad=True)
+            self.delta = torch.nn.Parameter(torch.Tensor(1, 1, 16000), requires_grad=True)
             torch.nn.init.xavier_uniform_(self.delta)
         elif reprog_front == 'condi':
-            self.linear_com = nn.Sequential(
-                nn.Conv1d(1, 10, 3, 1, 1),
+            n_channel = 50
+            self.linear = nn.Linear(n_channel, 80)
+            self.conv = nn.Sequential(
+                nn.Conv1d(80, n_channel, 3, 1, 1),
                 nn.ReLU(),
-                nn.Conv1d(10, 100, 3, 1, 1),
+                #nn.BatchNorm1d(n_channel),
+                #nn.Conv1d(n_channel, n_channel, 3, 1, 1),
+                #nn.ReLU(),
+                #nn.BatchNorm1d(n_channel),
+                #nn.Conv1d(n_channel, n_channel, 3, 1, 1),
+                #nn.ReLU(),
+                #nn.BatchNorm1d(n_channel),
+                #nn.Conv1d(n_channel, n_channel, 3, 1, 1)
             )
-            self.linear = nn.Linear(100, 1)
+           
         elif reprog_front == 'mix':
-            self.delta = torch.nn.Parameter(torch.Tensor(1, pad_num*3*157), requires_grad=True)
-            self.linear_emb = nn.Linear(152*3, pad_num*3)
-            self.linear_com = nn.Sequential(
-                nn.Conv1d(pad_num*3, pad_num*3, 3, 1, 1),
+            self.delta = torch.nn.Parameter(torch.Tensor(1, 1, 16000), requires_grad=True)
+            self.linear = nn.Linear(80, 160)
+            self.conv = nn.Sequential(
+                nn.Conv1d(160, 160, 3, 1, 1),
                 nn.ReLU(),
-                nn.Conv1d(pad_num*3, pad_num*3, 3, 1, 1),
+                nn.Conv1d(160, 160, 3, 1, 1),
+                nn.ReLU(),
+                nn.Conv1d(160, 80, 3, 1, 1),
             )
             torch.nn.init.xavier_uniform_(self.delta)
 
@@ -339,11 +351,14 @@ class V2SReprogModel(torch.nn.Module):
         n_batch = wav.shape[0]
         wav = wav.reshape(n_batch, -1, 16000).reshape(-1, 16000).unsqueeze(1)
 
-        if self.reprog_front == 'condi':
-            wav = torch.tanh(self.linear(self.linear_com(wav).permute(0, 2, 1)).permute(0, 2, 1))
-            
+        if self.reprog_front == 'uni_noise' or self.reprog_front == 'mix':
+            wav = wav + self.delta
+       
         features = self.cls_model.mel_extr(wav).permute(0, 1, 3, 2)
         features = self.cls_model.mag2db(features)
+        if self.reprog_front == 'condi' or self.reprog_front == 'mix':
+            features = self.linear(self.conv(features.squeeze(1).permute(0, 2, 1)).permute(0, 2, 1)).unsqueeze(1)
+            #features = self.linear_com(features)
         predicted = self.cls_model.transform(features)[:, :self.class_num * self.map_num]
 
         predicted = predicted.view(-1, self.class_num,
