@@ -66,7 +66,7 @@ class Solver(object):
         elif self.model_type in ['CNN16k', 'CNN235.5k', 'CNN14.1m', 'CNN14.4m']:
             return Model.CNNModel(model_type=self.model_type, n_class=self.n_class)
         elif self.model_type in ['hubert_ks']:
-            return Model.SpeechModel(map_num=self.map_num, fix_model=self.fix_model, reprog_front=self.reprog_front)
+            return Model.SpeechModel(map_num=self.map_num, fix_model=self.fix_model, reprog_front=self.reprog_front, class_num=self.n_class)
         elif self.model_type == 'speechatt':
             return Model.V2SReprogModel(map_num=self.map_num, n_class=self.n_class, reprog_front=self.reprog_front)
 
@@ -115,7 +115,7 @@ class Solver(object):
                 x = self.to_var(x)
                 y = self.to_var(y)
 
-                if 'resnet' in self.model_type:
+                if self.model_type in ['resnet18', 'resnet50', 'resnet101', 'efficientnet_b7', 'resnet152']:
                     out = self.model(x)
                 elif 'CNN' in self.model_type:
                     out = self.model(x)
@@ -231,7 +231,7 @@ class Solver(object):
                 # forward
                 x = self.to_var(x)
 
-                if 'resnet' in self.model_type:
+                if self.model_type in ['resnet18', 'resnet50', 'resnet101', 'efficientnet_b7', 'resnet152']:
                     y = self.to_var(y).repeat(len(x), 1)
                     out = self.model(x)
                 elif 'CNN' in self.model_type:
