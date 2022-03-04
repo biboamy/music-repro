@@ -13,8 +13,6 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.autograd import Variable
 import soundfile as sf
 
-import model as Model
-
 
 class Solver(object):
     def __init__(self, data_loader, valid_loader, config):
@@ -37,6 +35,10 @@ class Solver(object):
             self.n_class = 10
         elif self.dataset == 'FMA':
             self.n_class = 16
+        elif self.dataset == 'singer32':
+            self.n_class = 32
+        elif self.dataset == 'dcase':
+            self.n_class = 17
 
         # model path and step size
         self.model_save_path = config.model_save_path
@@ -60,15 +62,22 @@ class Solver(object):
 
     def get_model(self):
         if self.model_type in ['resnet18', 'resnet50', 'resnet101', 'efficientnet_b7', 'resnet152']:
-            return Model.ImageModel(model_type=self.model_type, map_num=self.map_num, pad_num=self.pad_num, reprog_front=self.reprog_front, fix_model=self.fix_model, n_class=self.n_class)
+            from models.ImageModel import ImageModel
+            return ImageModel(model_type=self.model_type, map_num=self.map_num, pad_num=self.pad_num, reprog_front=self.reprog_front, fix_model=self.fix_model, n_class=self.n_class)
         elif self.model_type == 'vggish':
             return Model.VGGishModel(map_num=self.map_num)
         elif self.model_type in ['CNN16k', 'CNN235.5k', 'CNN14.1m', 'CNN14.4m']:
-            return Model.CNNModel(model_type=self.model_type, n_class=self.n_class)
+            from models.CNNModel import CNNModel
+            return CNNModel(model_type=self.model_type, n_class=self.n_class)
         elif self.model_type in ['hubert_ks']:
             return Model.SpeechModel(map_num=self.map_num, fix_model=self.fix_model, reprog_front=self.reprog_front, class_num=self.n_class)
         elif self.model_type == 'speechatt':
-            return Model.V2SReprogModel(map_num=self.map_num, n_class=self.n_class, reprog_front=self.reprog_front)
+            from models.SpeechModel import V2SReprogModel
+            return V2SReprogModel(map_num=self.map_num, n_class=self.n_class, reprog_front=self.reprog_front)
+        elif self.model_type == 'ast':
+            from models.ASTModel import AST
+            return AST(n_class=self.n_class, reprog_front=self.reprog_front, map_num=self.map_num)
+
 
     def build_model(self):
         # model
@@ -123,6 +132,8 @@ class Solver(object):
                     out = self.model(x)
                 elif self.model_type == 'hubert_ks':
                     out = self.model(x['input_values'], x['attention_mask'])
+                elif self.model_type == 'ast':
+                    out = self.model(x)
                 # Backward
                 loss = reconst_loss(out, y)
                 self.optimizer.zero_grad()
@@ -169,7 +180,7 @@ class Solver(object):
             current_optimizer = 'sgd_2'
             drop_counter = 0
             print('sgd 5e-4')
-        '''
+        
         # second drop
         if current_optimizer == 'sgd_2' and drop_counter == 20:
             self.load(os.path.join(self.model_save_path, 'best_model.pth'))
@@ -177,7 +188,7 @@ class Solver(object):
                 pg['lr'] = 0.00001
             current_optimizer = 'sgd_3'
             print('sgd 1e-5')
-        '''
+        
         return current_optimizer, drop_counter
 
     def save(self, filename):
@@ -240,6 +251,9 @@ class Solver(object):
                 elif self.model_type == 'speechatt':
                     y = self.to_var(y).repeat(len(x), 1)
                     out = self.model(x)
+                elif self.model_type == 'ast':
+                    y = self.to_var(y).repeat(len(x), 1)
+                    out = self.model(x)
                 elif self.model_type == 'hubert_ks':
                     y = self.to_var(y).repeat(len(x['input_values']), 1)
                     chunk_size = int(np.ceil(len(y) / self.batch_size))
@@ -266,7 +280,7 @@ class Solver(object):
         print('loss: %.4f' % loss)
 
         acc = self.get_acc(np.argmax(est_array, axis=1), np.argmax(gt_array, axis=1))
-        roc_auc, pr_auc = self.get_auc(est_array, gt_array)
+        #roc_auc, pr_auc = self.get_auc(est_array, gt_array)
         self.writer.add_scalar('Loss/valid', loss, epoch)
         #self.writer.add_scalar('AUC/ROC', roc_auc, epoch)
         #self.writer.add_scalar('AUC/PR', pr_auc, epoch)

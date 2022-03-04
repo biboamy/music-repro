@@ -25,7 +25,7 @@ class FMA(data.Dataset):
 						 'Instrumental': 8, 'International': 9, 'Jazz': 10, 'Old-Time / Historic': 11, 'Pop': 12, 'Rock': 13, 'Soul-RnB': 14, 'Spoken': 15}
 		self.files = df[df.columns[0]].tolist()
 		#if split == 'train':
-		#	self.files = random.sample(self.files, int(len(self.files)*0.1))
+		#	self.files = np.random.choice(self.files, int(len(self.files)*0.5), replace=False)
 		self.class_num = 16
 		self.split = split
 		self.seg_length = input_length
@@ -34,17 +34,21 @@ class FMA(data.Dataset):
 		self.genres = df['genre_top'].tolist()
 		if self.model == 'hubert_ks':
 			self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("superb/hubert-base-superb-ks")
-
+		if split == 'test':
+			self.files.pop(104)
+			self.genres.pop(104)
 
 	def __len__(self):
 		if self.split == 'train':
-			return len(self.files)
+			return 10000 #len(self.files)
 		else:
 			return len(self.files)
 
 	def __getitem__(self, idx):
+		if self.split == 'train':
+			idx = random.randint(0, len(self.files)-1)
+
 		file = f'{int(self.files[idx]):06d}'
-		
 		label = np.zeros(self.class_num)
 		label[self.mappeing[self.genres[idx]]] = 1
 		if self.split == 'train':
@@ -69,7 +73,7 @@ class FMA(data.Dataset):
 		else:
 			try:
 				audio, sr = sf.read(os.path.join(self.root, 'audio_16000', file+'.wav'))
-			except:
+			except Exception as e:
 				#audio, sr = librosa.load(os.path.join(self.root, 'audio', file+'.mp3'), sr=16000)
 				return self.__getitem__(random.randint(0, len(self.files)-1))
 
@@ -88,12 +92,11 @@ class FMA(data.Dataset):
 					torch.cat((audio_chunks, audio[d][-int(self.seg_length):][:, None]), -1)
 					audio[d] =  audio_chunks.T
 				
-			elif 'resnet' in self.model or 'CNN' in self.model or 'speechatt' in self.model:
+			elif 'resnet' in self.model or 'CNN' in self.model or 'speechatt' in self.model or 'ast' in self.model:
 				audio_chunks = np.split(audio[:int(n_chunk*self.seg_length)], n_chunk)
 				audio_chunks.append(audio[-int(self.seg_length):])
 				audio = np.array(audio_chunks)
 
-			
 			return audio, label.astype('float32')
 
 
@@ -105,7 +108,7 @@ def get_audio_loader(root, batch_size, split='TRAIN', num_workers=0, input_lengt
 	data_loader = data.DataLoader(dataset=FMA(root, split=split, input_length=input_length, model=model),
 								  batch_size=batch_size,
 								  shuffle=shuffle,
-								  drop_last=False,
+								  drop_last=True,
 								  num_workers=num_workers)
 	return data_loader
 

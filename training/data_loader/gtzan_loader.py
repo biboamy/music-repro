@@ -81,7 +81,7 @@ class GTZAN(data.Dataset):
 					torch.cat((audio_chunks, audio[d][-int(self.seg_length):][:, None]), -1)
 					audio[d] =  audio_chunks.T
 				
-			elif 'resnet' in self.model or 'CNN' in self.model:
+			elif 'resnet' in self.model or 'CNN' in self.model or 'speechatt' in self.model or 'ast' in self.model:
 				audio_chunks = np.split(audio[:int(n_chunk*self.seg_length)], n_chunk)
 				audio_chunks.append(audio[-int(self.seg_length):])
 				audio = np.array(audio_chunks)
