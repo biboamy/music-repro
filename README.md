@@ -2,7 +2,7 @@
 
 ## Music Genre Classification with Reprogramming
 
-<img src="https://github.com/biboamy/music-repro/blob/main/music-repro.png" width="500">
+<img src="https://github.com/biboamy/music-repro/blob/main/music-repro.png" width="350">
 
 
 ## How to train?
