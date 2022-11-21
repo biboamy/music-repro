@@ -8,6 +8,9 @@
 - Yun-Ning Hung, Chao-Han Huck Yang, Pin-Yu Chen, and Alexander Lerch
 
 
+## Codebase
+To be released, feel free to contact authors. 
+
 ## References
 
 ```bib
@@ -18,9 +21,3 @@
   year={2022}
 }
 ```
-
-
-## Codebase
-To be released 
-
-
