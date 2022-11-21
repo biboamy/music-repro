@@ -7,5 +7,20 @@
 - Low-Resource Music Genre Classification with Advanced Neural Model Reprogramming. 
 - Yun-Ning Hung, Chao-Han Huck Yang, Pin-Yu Chen, and Alexander Lerch
 
+
+## References
+
+```bib
+@article{hung2022low,
+  title={Low-Resource Music Genre Classification with Advanced Neural Model Reprogramming},
+  author={Hung, Yun-Ning and Yang, Chao-Han Huck and Chen, Pin-Yu and Lerch, Alexander},
+  journal={arXiv preprint arXiv:2211.01317},
+  year={2022}
+}
+```
+
+
 ## Codebase
-To be released
+To be released 
+
+
