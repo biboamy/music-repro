@@ -1,5 +1,7 @@
 # Music Genre Classification with Reprogramming
 
+![PyTorch](https://img.shields.io/badge/PyTorch-%23EE4C2C.svg?style=for-the-badge&logo=PyTorch&logoColor=white)
+
 <img src="https://github.com/biboamy/music-repro/blob/main/music-repro.png" width="300">
 
 [Paper Link](https://arxiv.org/abs/2211.01317)
