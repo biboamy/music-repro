@@ -1,0 +1,9 @@
+numpy
+torch
+soundfile
+scikit-learn
+tqdm
+tensorboard
+wget
+timm==0.4.5
+torchaudio
