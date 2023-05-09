@@ -21,7 +21,18 @@ unzip archive.zip
 mv Data/genres_original/* music-repro/data/
 ```
 
-3. run experiment
+3. download pre-trained model
+```
+wget https://www.dropbox.com/s/ca0b1v2nlxzyeb4/audioset_10_10_0.4593.pth?dl=1 -p training/models/
+```
+
+4. Install Dependencies
+```
+pip3 install -r requirement.txt
+```
+
+
+4. run experiment
 
 ```
 python3 main.py --reprog_front uni_noise
