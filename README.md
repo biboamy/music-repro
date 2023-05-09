@@ -11,15 +11,42 @@
 
 
 ## Codebase
-To be released, feel free to contact authors. 
 
-- Train
+1. Download GTZAN dataset: https://www.kaggle.com/datasets/andradaolteanu/gtzan-dataset-music-genre-classification?resource=download
 
-```shell
-python -u main.py --data_path ../data/gtzan --model_type resnet101 --dataset gtzan --model_save_path ./../models/reprog_resnet101Fix/ --batch_size 16 --n_epochs 200
+2. unzip and move file:
+
+```
+unzip archive.zip
+mv Data/genres_original/* music-repro/data/
 ```
 
-## References
+3. run experiment
+
+```
+python3 main.py --reprog_front uni_noise
+
+python3 main.py --reprog_front condi
+
+python3 main.py --reprog_front skip
+```
+
+## Reference
+
+```bib
+@inproceedings{gong21b_interspeech,
+  author={Yuan Gong and Yu-An Chung and James Glass},
+  title={{AST: Audio Spectrogram Transformer}},
+  year=2021,
+  booktitle={Proc. Interspeech 2021},
+  pages={571--575},
+  doi={10.21437/Interspeech.2021-698}
+}
+```
+
+The ast code used in this repo comes from the [original repo](https://github.com/YuanGongND/ast)
+
+## Citing
 
 ```bib
 @article{hung2022low,
