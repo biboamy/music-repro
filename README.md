@@ -21,9 +21,9 @@ unzip archive.zip
 mv Data/genres_original/* music-repro/data/
 ```
 
-3. download pre-trained model
+3. download pre-trained model:  https://www.dropbox.com/s/ca0b1v2nlxzyeb4/audioset_10_10_0.4593.pth?dl=1
 ```
-wget https://www.dropbox.com/s/ca0b1v2nlxzyeb4/audioset_10_10_0.4593.pth?dl=1 -p training/models/
+mv audioset_10_10_0.4593.pth training/models/
 ```
 
 4. Install Dependencies
