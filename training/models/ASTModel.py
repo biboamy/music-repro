@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+# @Time    : 6/10/21 5:04 PM
+# @Author  : Yuan Gong
+# @Affiliation  : Massachusetts Institute of Technology
+# @Email   : yuangong@mit.edu
+# @File    : ast_models.py
+
 import torch
 import torch.nn as nn
 from torch.cuda.amp import autocast
@@ -151,7 +158,7 @@ class ASTModel(nn.Module):
 		return f_dim, t_dim
 
 	@autocast()
-	def forward(self, x):
+	def forward(self, x, skip=None):
 		"""
 		:param x: the input spectrogram, expected shape: (batch_size, time_frame_num, frequency_bins), e.g., (12, 1024, 128)
 		:return: prediction
@@ -166,12 +173,20 @@ class ASTModel(nn.Module):
 		dist_token = self.v.dist_token.expand(B, -1, -1)
 		x = torch.cat((cls_tokens, dist_token, x), dim=1)
 		x = x + self.v.pos_embed
+		skip_x = None
 		x = self.v.pos_drop(x)
 		for i, blk in enumerate(self.v.blocks):
 			if i == 5:
 				x = checkpoint(blk, x)
+
+			if skip is not None and i == skip[0]:
+				skip_x = skip[1](skip[2](x[:, 2:].permute(0, 2, 1)).mean(-1))
+
 		x = self.v.norm(x)
 		x = (x[:, 0] + x[:, 1]) / 2
+
+		if skip_x is not None:
+			x = x * skip_x[:, :768] + skip_x[:, 768:]
 
 		x = self.mlp_head(x)
 		return x
@@ -181,12 +196,12 @@ class WrappedModel(nn.Module):
 		super(WrappedModel, self).__init__()
 		self.module = ASTModel(label_dim=label_dim, input_tdim=input_tdim, imagenet_pretrain=False, audioset_pretrain=False)
 		print(self.module)
-	def forward(self, x):
-		return self.module(x)
+	def forward(self, x, skip=None):
+		return self.module(x, skip)
 
 
 class AST(torch.nn.Module):
-	def __init__(self, map_num=5, n_class=16, reprog_front=None):
+	def __init__(self, map_num=5, n_class=16, reprog_front=None, is_cuda=False):
 		super().__init__()
 
 		self.input_tdim = 1024 #130# 
@@ -196,21 +211,20 @@ class AST(torch.nn.Module):
 		self.reprog_front = reprog_front
 		self.ast_mdl = WrappedModel(label_dim=label_dim, input_tdim=self.input_tdim, imagenet_pretrain=False, audioset_pretrain=False)
 
-		checkpoint = torch.load('models/audioset_10_10_0.4593.pth', map_location='cuda')
-		#self.ast_mdl = torch.nn.DataParallel(self.ast_mdl, device_ids=[0])
+		if is_cuda:
+			checkpoint = torch.load('models/audioset_10_10_0.4593.pth', map_location='cuda')
+		else:
+			checkpoint = torch.load('models/audioset_10_10_0.4593.pth', map_location='cpu')
 		self.ast_mdl.load_state_dict(checkpoint)
 
 		for name, param in self.ast_mdl.named_parameters():
-			#if 'mlp_head' not in name:
 			param.requires_grad = False
 
 		if reprog_front == 'uni_noise':
-			self.delta = torch.nn.Parameter(torch.Tensor(1, 16000), requires_grad=True)
+			self.delta = torch.nn.Parameter(torch.Tensor(1, 160000), requires_grad=True)
 			torch.nn.init.xavier_uniform_(self.delta)
-			#self.delta = torch.nn.Parameter(torch.Tensor(1, self.input_tdim, 128), requires_grad=True)
-			#torch.nn.init.xavier_uniform_(self.delta)
 		elif reprog_front == 'condi':
-			n_channel = 136
+			n_channel = 135
 			self.linear = nn.Linear(n_channel, 128)
 			self.conv = nn.Sequential(
 				nn.Conv1d(128, n_channel, 3, 1, 1),
@@ -224,6 +238,22 @@ class AST(torch.nn.Module):
 				nn.BatchNorm1d(n_channel),
 				nn.Conv1d(n_channel, n_channel, 3, 1, 1)
 			)
+		elif reprog_front == 'skip':
+			n_channel = 54
+			self.linear = nn.Linear(n_channel, 768 * 2)
+			self.conv = nn.Sequential(
+				nn.Conv1d(768, n_channel, 3, 1, 1),
+				nn.ReLU(),
+				nn.BatchNorm1d(n_channel),
+				nn.Conv1d(n_channel, n_channel, 3, 1, 1),
+				nn.ReLU(),
+				nn.BatchNorm1d(n_channel),
+				nn.Conv1d(n_channel, n_channel, 3, 1, 1),
+				nn.ReLU(),
+				nn.BatchNorm1d(n_channel),
+				nn.Conv1d(n_channel, n_channel, 3, 1, 1)
+			)
+
 
 	def preprocess(self, waveform, target_length=130):
 		fbank = []
@@ -257,7 +287,10 @@ class AST(torch.nn.Module):
 		if self.reprog_front == 'condi':
 			features = self.linear(self.conv(features.permute(0, 2, 1)).permute(0, 2, 1))
 
-		predicted = self.ast_mdl(features)[:, :self.class_num * self.map_num]
+		if self.reprog_front == 'skip':
+			predicted = self.ast_mdl(features, [8, self.linear, self.conv])[:, :self.class_num * self.map_num]
+		else:
+			predicted = self.ast_mdl(features)[:, :self.class_num * self.map_num]
 
 		predicted = predicted.view(-1, self.class_num, self.map_num).sum(dim=-1)
 
