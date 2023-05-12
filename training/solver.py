@@ -43,8 +43,7 @@ class Solver(object):
         # Build model
         self.build_model()
 
-        model_parameters = filter(lambda p: p.requires_grad,
-                                  self.model.parameters())
+        model_parameters = filter(lambda p: p.requires_grad, self.model.parameters())
         params = sum([np.prod(p.size()) for p in model_parameters])
         print(f"Trainable parameters: {str(params)}")
 
@@ -194,9 +193,7 @@ class Solver(object):
 
     def get_auc(self, est_array, gt_array):
         roc_aucs = metrics.roc_auc_score(gt_array, est_array, average="macro")
-        pr_aucs = metrics.average_precision_score(gt_array,
-                                                  est_array,
-                                                  average="macro")
+        pr_aucs = metrics.average_precision_score(gt_array, est_array, average="macro")
         print("roc_auc: %.4f pr_auc: %.4f" % (roc_aucs, pr_aucs))
         return roc_aucs, pr_aucs
 
@@ -266,8 +263,7 @@ class Solver(object):
         loss = np.mean(losses)
         print("loss: %.4f" % loss)
 
-        acc = self.get_acc(np.argmax(est_array, axis=1),
-                           np.argmax(gt_array, axis=1))
+        acc = self.get_acc(np.argmax(est_array, axis=1), np.argmax(gt_array, axis=1))
         roc_auc, pr_auc = self.get_auc(est_array, gt_array)
         self.writer.add_scalar("Loss/valid", loss, epoch)
         self.writer.add_scalar("AUC/ROC", roc_auc, epoch)

@@ -62,6 +62,7 @@ class ASTModel(nn.Module):
         model_size="base384",
         verbose=True,
     ):
+
         super(ASTModel, self).__init__()
         assert (
             timm.__version__ == "0.4.5"
@@ -207,13 +208,21 @@ class ASTModel(nn.Module):
                     "currently only has base384 AudioSet pretrained model."
                 )
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            if os.path.exists("models/audioset_10_10_0.4593.pth") == False:
+            if (
+                os.path.exists("../../pretrained_models/audioset_10_10_0.4593.pth")
+                == False
+            ):
                 # this model performs 0.4593 mAP on the audioset eval set
                 audioset_mdl_url = (
                     "https://www.dropbox.com/s/cv4knew8mvbrnvq/audioset_0.4593.pth?dl=1"
                 )
-                wget.download(audioset_mdl_url, out="models/audioset_10_10_0.4593.pth")
-            sd = torch.load("models/audioset_10_10_0.4593.pth", map_location=device)
+                wget.download(
+                    audioset_mdl_url,
+                    out="../../pretrained_models/audioset_10_10_0.4593.pth",
+                )
+            sd = torch.load(
+                "../../pretrained_models/audioset_10_10_0.4593.pth", map_location=device
+            )
             audio_model = ASTModel(
                 label_dim=527,
                 fstride=10,
@@ -260,6 +269,15 @@ class ASTModel(nn.Module):
                 new_pos_embed = torch.nn.functional.interpolate(
                     new_pos_embed, size=(12, t_dim), mode="bilinear"
                 )
+            if f_dim < 12:
+                new_pos_embed = new_pos_embed[
+                    :, :, 6 - int(f_dim / 2) : 6 - int(f_dim / 2) + f_dim, :
+                ]
+            # otherwise interpolate
+            elif f_dim > 12:
+                new_pos_embed = torch.nn.functional.interpolate(
+                    new_pos_embed, size=(f_dim, t_dim), mode="bilinear"
+                )
             new_pos_embed = new_pos_embed.reshape(1, 768, num_patches).transpose(1, 2)
             self.v.pos_embed = nn.Parameter(
                 torch.cat([self.v.pos_embed[:, :2, :].detach(), new_pos_embed], dim=1)
@@ -294,11 +312,9 @@ class ASTModel(nn.Module):
         dist_token = self.v.dist_token.expand(B, -1, -1)
         x = torch.cat((cls_tokens, dist_token, x), dim=1)
         x = x + self.v.pos_embed
-        skip_x = None
         x = self.v.pos_drop(x)
         for i, blk in enumerate(self.v.blocks):
-            if i == 5:
-                x = checkpoint(blk, x)
+            x = blk(x)
 
             if skip is not None and i == skip[0]:
                 skip_x = skip[1](skip[2](x[:, 2:].permute(0, 2, 1)).mean(-1))
@@ -316,11 +332,12 @@ class ASTModel(nn.Module):
 class WrappedModel(nn.Module):
     def __init__(self, label_dim, input_tdim, imagenet_pretrain, audioset_pretrain):
         super(WrappedModel, self).__init__()
+
         self.module = ASTModel(
             label_dim=label_dim,
             input_tdim=input_tdim,
-            imagenet_pretrain=False,
-            audioset_pretrain=False,
+            imagenet_pretrain=imagenet_pretrain,
+            audioset_pretrain=audioset_pretrain,
         )
         print(self.module)
 
@@ -340,21 +357,12 @@ class AST(torch.nn.Module):
         self.ast_mdl = WrappedModel(
             label_dim=label_dim,
             input_tdim=self.input_tdim,
-            imagenet_pretrain=False,
-            audioset_pretrain=False,
+            imagenet_pretrain=True,
+            audioset_pretrain=True,
         )
 
-        if is_cuda:
-            checkpoint = torch.load(
-                "models/audioset_10_10_0.4593.pth", map_location="cuda"
-            )
-        else:
-            checkpoint = torch.load(
-                "models/audioset_10_10_0.4593.pth", map_location="cpu"
-            )
-        self.ast_mdl.load_state_dict(checkpoint)
-
         for name, param in self.ast_mdl.named_parameters():
+            # if 'mlp_head' not in name:
             param.requires_grad = False
 
         if reprog_front == "uni_noise":
@@ -396,7 +404,9 @@ class AST(torch.nn.Module):
 
         for i in range(waveform.shape[0]):
             data = torchaudio.compliance.kaldi.fbank(
-                waveform[i][None,],
+                waveform[i][
+                    None,
+                ],
                 htk_compat=True,
                 sample_frequency=16000,
                 use_energy=False,
@@ -414,7 +424,11 @@ class AST(torch.nn.Module):
             elif p < 0:
                 data = data[0:target_length, :]
 
-            fbank.append(data[None,])
+            fbank.append(
+                data[
+                    None,
+                ]
+            )
         fbank = torch.cat(fbank, 0)
         fbank = (fbank + 4.2677393) / (4.5689974 * 2)
 

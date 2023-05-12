@@ -7,12 +7,7 @@ from modules import HarmonicSTFT
 class Conv3_2d(nn.Module):
     def __init__(self, input_channels, output_channels, pooling=2, kernal=3):
         super(Conv3_2d, self).__init__()
-        self.conv = nn.Conv2d(
-            input_channels,
-            output_channels,
-            kernal,
-            padding=1
-        )
+        self.conv = nn.Conv2d(input_channels, output_channels, kernal, padding=1)
         self.bn = nn.BatchNorm2d(output_channels)
         self.relu = nn.ReLU()
         self.mp = nn.MaxPool2d(pooling)
@@ -23,14 +18,7 @@ class Conv3_2d(nn.Module):
 
 
 class Conv3_2d_resmp(nn.Module):
-    def __init__(
-        self,
-        input_channels,
-        output_channels,
-        pooling=2,
-        kernal=3,
-        padding=1
-    ):
+    def __init__(self, input_channels, output_channels, pooling=2, kernal=3, padding=1):
         super(Conv3_2d_resmp, self).__init__()
         self.conv_1 = nn.Conv2d(
             input_channels, output_channels, kernal, padding=padding
@@ -87,14 +75,15 @@ class CNNModel(torch.nn.Module):
             # 810, 10
 
         if model_type == "CNN235.5k":
+
             conv_channels = 54
             self.conv = nn.Sequential(
-                Conv3_2d(3, conv_channels, 2, kernal=6),
+                Conv3_2d(3, conv_channels, 2, kernal=3),
                 Conv3_2d_resmp(conv_channels, conv_channels),
                 Conv3_2d_resmp(conv_channels, conv_channels),
                 Conv3_2d_resmp(conv_channels, conv_channels),
             )
-            self.classifier = nn.Linear(4374, n_class)
+            self.classifier = nn.Linear(9234, n_class)
             # 4698 58
             # 4374 54
 
@@ -107,11 +96,7 @@ class CNNModel(torch.nn.Module):
                 Conv3_2d_resmp(conv_channels, conv_channels),
                 Conv3_2d(conv_channels, conv_channels * 2, 2, kernal=5),
                 Conv3_2d_resmp(
-                    conv_channels * 2,
-                    conv_channels * 2,
-                    (2, 1),
-                    kernal=5,
-                    padding=2
+                    conv_channels * 2, conv_channels * 2, (2, 1), kernal=5, padding=2
                 ),
                 Conv3_2d_resmp(conv_channels * 2, conv_channels * 2, 1),
             )
@@ -134,10 +119,7 @@ class CNNModel(torch.nn.Module):
                 Conv3_2d_resmp(conv_channels, conv_channels),
                 Conv3_2d(conv_channels, conv_channels * 2, 2, kernal=5),
                 Conv3_2d_resmp(
-                    conv_channels * 2,
-                    conv_channels * 2, (2, 1),
-                    kernal=5,
-                    padding=2
+                    conv_channels * 2, conv_channels * 2, (2, 1), kernal=5, padding=2
                 ),
                 Conv3_2d_resmp(conv_channels * 2, conv_channels * 2, 1),
             )

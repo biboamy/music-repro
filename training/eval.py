@@ -58,9 +58,7 @@ class Predict(object):
 
             return AST(n_class=self.n_classes, reprog_front=self.reprog_front)
         else:
-            print(
-                "model_type has to be one of [CNN235.5k, speechatt, ast]"
-            )
+            print("model_type has to be one of [CNN235.5k, speechatt, ast]")
 
     def build_model(self):
         self.model = self.get_model()
@@ -94,8 +92,7 @@ class Predict(object):
 
         est_array = softmax(est_array, 1)
         roc_aucs = metrics.roc_auc_score(gt_array, est_array, average="macro")
-        pr_aucs = metrics.average_precision_score(gt_array,
-                                                  est_array, average="macro")
+        pr_aucs = metrics.average_precision_score(gt_array, est_array, average="macro")
         return roc_aucs, pr_aucs
 
     def get_score(self, est_array, gt_array):
@@ -134,13 +131,10 @@ class Predict(object):
                 out = np.zeros((x.shape[0], self.n_classes))
                 mini_batch = int(np.ceil(x.shape[0] / self.batch_size))
                 for i in range(mini_batch):
-                    out[
-                        i * self.batch_size: i * self.batch_size
-                        + self.batch_size
-                        ] = (
+                    out[i * self.batch_size : i * self.batch_size + self.batch_size] = (
                         self.model(
                             x[
-                                i * self.batch_size: i * self.batch_size
+                                i * self.batch_size : i * self.batch_size
                                 + self.batch_size
                             ]
                         )
@@ -170,10 +164,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument(
-        "--dataset",
-        type=str,
-        default="gtzan",
-        choices=["gtzan", "FMA", "singer32"]
+        "--dataset", type=str, default="gtzan", choices=["gtzan", "FMA", "singer32"]
     )
     parser.add_argument(
         "--model_type",

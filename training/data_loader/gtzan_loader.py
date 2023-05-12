@@ -4,6 +4,7 @@ import numpy as np
 from torch.utils import data
 import random
 import soundfile as sf
+import librosa
 
 
 class GTZAN(data.Dataset):
@@ -33,7 +34,7 @@ class GTZAN(data.Dataset):
 
     def __len__(self):
         if self.split == "train":
-            return 10000
+            return 5000
         else:
             return len(self.files)
 
@@ -45,34 +46,23 @@ class GTZAN(data.Dataset):
         label = np.zeros(self.class_num)
         label[self.mappeing[file.split("/")[0]]] = 1
         if self.split == "train":
-            start = random.randint(0, frame - self.seg_length - 16000)
-
-            end = start + self.seg_length
-            audio, sr = sf.read(os.path.join(self.root, file),
-                                start=start, stop=end)
+            audio, sr = librosa.load(os.path.join(self.root, file), sr=16000)
+            start = random.randint(0, len(audio) - self.seg_length - 16000)
+            audio = audio[start : start + self.seg_length]
             audio = audio.astype("float32")
             return audio, label.astype("float32")
         else:
-            audio, sr = sf.read(os.path.join(self.root, file))
+            audio, sr = librosa.load(os.path.join(self.root, file), sr=16000)
             audio = audio.astype("float32")
-
             n_chunk = len(audio) // self.seg_length
-
-            audio_chunks = np.split(audio[: int(n_chunk * self.seg_length)],
-                                    n_chunk)
-            audio_chunks.append(audio[-int(self.seg_length):])
+            audio_chunks = np.split(audio[: int(n_chunk * self.seg_length)], n_chunk)
+            audio_chunks.append(audio[-int(self.seg_length) :])
             audio = np.array(audio_chunks)
 
             return audio, label.astype("float32")
 
 
-def get_audio_loader(
-    root,
-    batch_size,
-    split="TRAIN",
-    num_workers=0,
-    input_length=None
-):
+def get_audio_loader(root, batch_size, split="TRAIN", num_workers=0, input_length=None):
     data_loader = data.DataLoader(
         dataset=GTZAN(root, split=split, input_length=input_length),
         batch_size=batch_size,
