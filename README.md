@@ -21,23 +21,18 @@ unzip archive.zip
 mv Data/genres_original/* music-repro/data/
 ```
 
-3. download pre-trained model:  https://www.dropbox.com/s/ca0b1v2nlxzyeb4/audioset_10_10_0.4593.pth?dl=1
-```
-mv audioset_10_10_0.4593.pth training/models/
-```
-
-4. Install Dependencies
+3. Install Dependencies
 ```
 pip3 install -r requirement.txt
 ```
 
-5. Pull pre-trained models
+4. Pull pre-trained models
 ```
 git lfs fetch --all
 ```
 
 
-6. run experiment (skip to "7" for inference only)
+5. run experiment (skip to "7" for inference only)
 
 ```
 python3 main.py --reprog_front uni_noise
@@ -47,7 +42,7 @@ python3 main.py --reprog_front condi
 python3 main.py --reprog_front skip
 ```
 
-7. Visit "demo.ipynb" for inference only demo
+6. Visit "demo.ipynb" for inference only demo
 
 
 ## Reference
