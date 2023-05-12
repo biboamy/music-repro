@@ -322,10 +322,13 @@ class ASTModel(nn.Module):
         x = (x[:, 0] + x[:, 1]) / 2
 
         if skip_x is not None:
-            x = x * skip_x[:, :768] + skip_x[:, 768:]
-
-        x = self.mlp_head(x)
-        return x
+            _x = x * skip_x[:, :768] + skip_x[:, 768:]
+            oup = self.mlp_head(_x)
+            return oup, x, _x
+        else:
+            x = self.mlp_head(x)
+            
+            return x
 
 
 class WrappedModel(nn.Module):
@@ -338,7 +341,6 @@ class WrappedModel(nn.Module):
             imagenet_pretrain=imagenet_pretrain,
             audioset_pretrain=audioset_pretrain,
         )
-        print(self.module)
 
     def forward(self, x, skip=None):
         return self.module(x, skip)
@@ -446,12 +448,12 @@ class AST(torch.nn.Module):
             )
 
         if self.reprog_front == "skip":
-            predicted = self.ast_mdl(features, [8, self.linear, self.conv])[
-                :, : self.class_num * self.map_num
-            ]
+            predicted, ori_emb, tra_emb = self.ast_mdl(features, [8, self.linear, self.conv])
+            predicted = predicted[ :, : self.class_num * self.map_num]
+            predicted = predicted.view(-1, self.class_num, self.map_num).sum(dim=-1)
+            return predicted, ori_emb, tra_emb
         else:
             predicted = self.ast_mdl(features)[:, : self.class_num * self.map_num]
+            predicted = predicted.view(-1, self.class_num, self.map_num).sum(dim=-1)
 
-        predicted = predicted.view(-1, self.class_num, self.map_num).sum(dim=-1)
-
-        return predicted
+            return predicted
