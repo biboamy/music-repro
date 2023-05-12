@@ -31,8 +31,13 @@ mv audioset_10_10_0.4593.pth training/models/
 pip3 install -r requirement.txt
 ```
 
+5. Pull pre-trained models
+```
+git lfs fetch --all
+```
 
-4. run experiment
+
+6. run experiment (skip to "7" for inference only)
 
 ```
 python3 main.py --reprog_front uni_noise
@@ -41,6 +46,9 @@ python3 main.py --reprog_front condi
 
 python3 main.py --reprog_front skip
 ```
+
+7. Visit "demo.ipynb" for inference only demo
+
 
 ## Reference
 
