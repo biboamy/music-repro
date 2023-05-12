@@ -9,7 +9,12 @@ from modules import HarmonicSTFT
 class Conv3_2d(nn.Module):
     def __init__(self, input_channels, output_channels, pooling=2, kernal=3):
         super(Conv3_2d, self).__init__()
-        self.conv = nn.Conv2d(input_channels, output_channels, kernal, padding=1)
+        self.conv = nn.Conv2d(
+            input_channels,
+            output_channels,
+            kernal,
+            padding=1
+        )
         self.bn = nn.BatchNorm2d(output_channels)
         self.relu = nn.ReLU()
         self.mp = nn.MaxPool2d(pooling)
@@ -20,7 +25,14 @@ class Conv3_2d(nn.Module):
 
 
 class Conv3_2d_resmp(nn.Module):
-    def __init__(self, input_channels, output_channels, pooling=2, kernal=3, padding=1):
+    def __init__(
+        self,
+        input_channels,
+        output_channels,
+        pooling=2,
+        kernal=3,
+        padding=1
+    ):
         super(Conv3_2d_resmp, self).__init__()
         self.conv_1 = nn.Conv2d(
             input_channels, output_channels, kernal, padding=padding
@@ -112,7 +124,9 @@ class AttRNNSpeechModel(torch.nn.Module):
         )
         self.query_transform = torch.nn.Linear(128, 128)
         self.head = torch.nn.Sequential(
-            torch.nn.Linear(128, 64), torch.nn.Linear(64, 32), torch.nn.Linear(32, 35)
+            torch.nn.Linear(128, 64),
+            torch.nn.Linear(64, 32),
+            torch.nn.Linear(32, 35)
         )
 
         self.init_weights()
@@ -222,13 +236,19 @@ class V2SReprogModel(torch.nn.Module):
         features = self.cls_model.mag2db(features)
         if self.reprog_front == "condi" or self.reprog_front == "mix":
             features = self.linear(
-                self.conv(features.squeeze(1).permute(0, 2, 1)).permute(0, 2, 1)
+                self.conv(
+                    features.squeeze(1).permute(0, 2, 1)
+                ).permute(0, 2, 1)
             ).unsqueeze(1)
             # features = self.linear_com(features)
         predicted = self.cls_model.transform(features)[
             :, : self.class_num * self.map_num
         ]
 
-        predicted = predicted.view(-1, self.class_num, self.map_num).sum(dim=-1)
+        predicted = predicted.view(
+            -1,
+            self.class_num,
+            self.map_num
+        ).sum(dim=-1)
         predicted = predicted.reshape(n_batch, -1, self.class_num).mean(1)
         return predicted

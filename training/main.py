@@ -51,7 +51,12 @@ if __name__ == "__main__":
     )
 
     parser.add_argument("--num_workers", type=int, default=6)
-    parser.add_argument("--dataset", type=str, default="gtzan", choices=["gtzan"])
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default="gtzan",
+        choices=["gtzan"]
+    )
     parser.add_argument(
         "--model_type",
         type=str,

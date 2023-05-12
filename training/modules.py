@@ -90,7 +90,9 @@ class HarmonicSTFT(nn.Module):
 
         # Bandwidth parameters
         if learn_bw == "only_Q":
-            self.bw_Q = nn.Parameter(torch.tensor(np.array([bw_Q]).astype("float32")))
+            self.bw_Q = nn.Parameter(
+                torch.tensor(np.array([bw_Q]).astype("float32"))
+            )
         elif learn_bw == "fix":
             self.bw_Q = torch.tensor(np.array([bw_Q]).astype("float32"))
 
@@ -130,7 +132,12 @@ class HarmonicSTFT(nn.Module):
 
         # (batch, channel, length) -> (batch, harmonic, f0, length)
         b, c, time = harmonic_spec.size()
-        harmonic_spec = harmonic_spec.view(b, self.n_harmonic, self.level, time)
+        harmonic_spec = harmonic_spec.view(
+            b,
+            self.n_harmonic,
+            self.level,
+            time
+        )
 
         # amplitude to db
         harmonic_spec = self.amplitude_to_db(harmonic_spec)

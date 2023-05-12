@@ -7,7 +7,12 @@ from modules import HarmonicSTFT
 class Conv3_2d(nn.Module):
     def __init__(self, input_channels, output_channels, pooling=2, kernal=3):
         super(Conv3_2d, self).__init__()
-        self.conv = nn.Conv2d(input_channels, output_channels, kernal, padding=1)
+        self.conv = nn.Conv2d(
+            input_channels,
+            output_channels,
+            kernal,
+            padding=1
+        )
         self.bn = nn.BatchNorm2d(output_channels)
         self.relu = nn.ReLU()
         self.mp = nn.MaxPool2d(pooling)
@@ -18,7 +23,14 @@ class Conv3_2d(nn.Module):
 
 
 class Conv3_2d_resmp(nn.Module):
-    def __init__(self, input_channels, output_channels, pooling=2, kernal=3, padding=1):
+    def __init__(
+        self,
+        input_channels,
+        output_channels,
+        pooling=2,
+        kernal=3,
+        padding=1
+    ):
         super(Conv3_2d_resmp, self).__init__()
         self.conv_1 = nn.Conv2d(
             input_channels, output_channels, kernal, padding=padding

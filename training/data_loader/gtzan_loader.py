@@ -62,7 +62,13 @@ class GTZAN(data.Dataset):
             return audio, label.astype("float32")
 
 
-def get_audio_loader(root, batch_size, split="TRAIN", num_workers=0, input_length=None):
+def get_audio_loader(
+    root,
+    batch_size,
+    split="TRAIN",
+    num_workers=0,
+    input_length=None
+):
     data_loader = data.DataLoader(
         dataset=GTZAN(root, split=split, input_length=input_length),
         batch_size=batch_size,

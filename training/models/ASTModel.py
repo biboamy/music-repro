@@ -62,7 +62,6 @@ class ASTModel(nn.Module):
         model_size="base384",
         verbose=True,
     ):
-
         super(ASTModel, self).__init__()
         assert (
             timm.__version__ == "0.4.5"
