@@ -34,7 +34,7 @@ class GTZAN(data.Dataset):
 
     def __len__(self):
         if self.split == "train":
-            return 5000
+            return 1000
         else:
             return len(self.files)
 
