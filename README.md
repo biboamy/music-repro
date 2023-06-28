@@ -63,10 +63,12 @@ The ast code used in this repo comes from the [original repo](https://github.com
 ## Citing
 
 ```bib
-@article{hung2022low,
-  title={Low-Resource Music Genre Classification with Advanced Neural Model Reprogramming},
+@inproceedings{hung2023low,
+  title={Low-Resource Music Genre Classification with Cross-Modal Neural Model Reprogramming},
   author={Hung, Yun-Ning and Yang, Chao-Han Huck and Chen, Pin-Yu and Lerch, Alexander},
-  journal={arXiv preprint arXiv:2211.01317},
-  year={2022}
+  booktitle={Proc. of ICASSP 2023},
+  pages={1--5},
+  year={2023},
+  organization={IEEE}
 }
 ```
