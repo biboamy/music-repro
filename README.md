@@ -45,7 +45,7 @@ python3 main.py --reprog_front skip
 6. Visit "demo.ipynb" for inference only demo
 
 
-## Reference
+## AST Reference
 
 ```bib
 @inproceedings{gong21b_interspeech,
@@ -60,7 +60,7 @@ python3 main.py --reprog_front skip
 
 The ast code used in this repo comes from the [original repo](https://github.com/YuanGongND/ast)
 
-## Citing
+## Citing Music Reprogramming
 
 ```bib
 @inproceedings{hung2023low,
