@@ -9,7 +9,6 @@
 - Low-Resource Music Genre Classification with Advanced Neural Model Reprogramming. 
 - Yun-Ning Hung, Chao-Han Huck Yang, Pin-Yu Chen, and Alexander Lerch
 
-
 ## Codebase
 
 1. Download GTZAN dataset: https://www.kaggle.com/datasets/andradaolteanu/gtzan-dataset-music-genre-classification?resource=download
@@ -72,3 +71,8 @@ The ast code used in this repo comes from the [original repo](https://github.com
   organization={IEEE}
 }
 ```
+
+## Bug Fix
+
+If you encounter the following errors "**batch response: This repository is over its data quota. Account responsible for LFS...**", Please download the model from here [Google Drive](https://drive.google.com/file/d/1XDcvNN5kYdd7J7bOHDH_TwTCsed1RGj5/view?usp=sharing)
+
